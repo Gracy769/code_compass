@@ -35,6 +35,24 @@ class ContributorStat:
 
 
 @dataclass
+class SemanticFinding:
+    """A single LLM-generated semantic audit finding for one source file.
+
+    In Phase 1 the findings are produced by a deterministic stub
+    (``_call_llm`` in ``semantic_auditor``).  In Phase 2 the stub is
+    replaced by a real LLM client without changing this dataclass or any
+    downstream consumer.
+    """
+
+    file: str          # str (not Path) for JSON-serializability
+    severity: str      # 'high' | 'medium' | 'low'
+    category: str      # 'race_condition' | 'state_mutation' | 'error_handling' | 'insecure_defaults'
+    summary: str       # one-line description (≤ 120 chars)
+    detail: str        # multi-sentence explanation
+    prompt_used: str   # exact prompt sent to the LLM, or '[mock]' for stubs
+
+
+@dataclass
 class AnalysisResult:
     """Top-level result returned by :func:`analyze`."""
 
@@ -43,3 +61,4 @@ class AnalysisResult:
     contributors: list[ContributorStat] = field(default_factory=list)
     parse_errors: list[str] = field(default_factory=list)
     dead_code: list[str] = field(default_factory=list)
+    semantic_findings: list[SemanticFinding] = field(default_factory=list)
