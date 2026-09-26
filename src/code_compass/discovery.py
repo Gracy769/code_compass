@@ -23,7 +23,7 @@ _EXT_TO_LANG: dict[str, str] = {
 }
 
 _BINARY_SNIFF_BYTES = 8192  # 8 KB
-_DEFAULT_MAX_FILE_BYTES = 524_288  # 512 KB
+_DEFAULT_MAX_FILE_BYTES = 350_000  # 350 KB — files above this skip heavy AST parsing
 
 
 # ---------------------------------------------------------------------------
