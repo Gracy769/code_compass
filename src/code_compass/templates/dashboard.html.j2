@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Compass — {{ repo_name }}</title>
+  <!-- Chart.js loaded from CDN (only allowed external dependency) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ============================================================
+       CODE COMPASS — FULL VISUAL DESIGN SYSTEM
+       Agent 4: Glassmorphism base layer
+       Agent 5: Claymorphism interactive layer
+       ============================================================ */
+
+    /* ── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── CSS Custom Properties (design tokens) ──────────────────── */
+    :root {
+      /* Glassmorphism tokens */
+      --glass-bg:       rgba(255, 255, 255, 0.05);
+      --glass-bg-nav:   rgba(13, 17, 23, 0.72);
+      --glass-border:   rgba(255, 255, 255, 0.12);
+      --blur-radius:    16px;
+
+      /* Claymorphism tokens */
+      --clay-shadow:
+        0 1px 0 0 rgba(255,255,255,0.18) inset,
+        0 -1px 0 0 rgba(0,0,0,0.30) inset,
+        0 8px 24px -4px rgba(0,0,0,0.55),
+        0 2px 6px -1px rgba(0,0,0,0.40);
+      --clay-highlight:
+        0 1px 0 0 rgba(255,255,255,0.22) inset,
+        0 -1px 0 0 rgba(0,0,0,0.35) inset,
+        0 12px 32px -4px rgba(59,130,212,0.30),
+        0 4px 10px -2px rgba(0,0,0,0.50);
+      --clay-press:
+        0 1px 0 0 rgba(255,255,255,0.10) inset,
+        0 2px 0 0 rgba(0,0,0,0.40) inset,
+        0 2px 6px -1px rgba(0,0,0,0.50);
+
+      /* Palette */
+      --accent:         #3b82d4;
+      --accent-muted:   rgba(59, 130, 212, 0.25);
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --surface:        rgba(255, 255, 255, 0.04);
+      --danger:         #f87171;   /* high complexity (>=10) */
+      --warn:           #fbbf24;   /* medium complexity (5-9) */
+      --success:        #86efac;
+
+      /* Spacing / radius */
+      --radius-card:    1.5rem;
+      --radius-btn:     1.2rem;
+      --radius-sm:      0.5rem;
+    }
+
+    /* ── AGENT 4: Body — deep dark gradient background ──────────── */
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      /* Two-stop dark gradient */
+      background: linear-gradient(160deg, #0d1117 0%, #161b22 60%, #0d1117 100%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Subtle animated grain texture via SVG data URI overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    }
+
+    /* Ensure stacking context for page content above grain */
+    .nav-bar, .tab-strip, .tab-content { position: relative; z-index: 1; }
+
+    /* ── AGENT 4: Nav bar — glassmorphism ───────────────────────── */
+    .nav-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--glass-bg-nav);
+      backdrop-filter: blur(var(--blur-radius)) saturate(1.4);
+      -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(1.4);
+      border-bottom: 1px solid var(--glass-border);
+      /* subtle bottom glow line */
+      box-shadow: 0 1px 0 0 rgba(59,130,212,0.18), 0 4px 20px -2px rgba(0,0,0,0.55);
+    }
+    .nav-bar .app-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--accent);
+      white-space: nowrap;
+      letter-spacing: -0.01em;
+    }
+    .nav-bar .repo-path {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── AGENT 4: Tab strip — glass base ───────────────────────── */
+    .tab-strip {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem 0;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(13, 17, 23, 0.55);
+      backdrop-filter: blur(8px) saturate(1.2);
+      -webkit-backdrop-filter: blur(8px) saturate(1.2);
+    }
+
+    /* ── AGENT 5: Tab buttons — claymorphism ───────────────────── */
+    .tab-btn {
+      padding: 0.5rem 1.2rem;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--radius-btn) var(--radius-btn) 0 0;
+      border-bottom: none;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      /* Clay depth */
+      box-shadow: var(--clay-shadow);
+      transition:
+        background   0.18s ease,
+        color        0.18s ease,
+        box-shadow   0.18s ease,
+        transform    0.12s ease;
+    }
+    .tab-btn:hover {
+      background: rgba(59,130,212,0.12);
+      color: var(--text-primary);
+      box-shadow: var(--clay-highlight);
+      transform: translateY(-2px);
+    }
+    .tab-btn:active {
+      transform: translateY(1px);
+      box-shadow: var(--clay-press);
+    }
+    .tab-btn.active {
+      background: linear-gradient(180deg, rgba(59,130,212,0.22) 0%, rgba(59,130,212,0.08) 100%);
+      color: var(--accent);
+      font-weight: 600;
+      border-color: rgba(59,130,212,0.35);
+      box-shadow:
+        0 1px 0 0 rgba(255,255,255,0.18) inset,
+        0 -1px 0 0 rgba(0,0,0,0.25) inset,
+        0 8px 20px -4px rgba(59,130,212,0.35),
+        0 2px 6px -1px rgba(0,0,0,0.40);
+    }
+
+    /* ── Content area ───────────────────────────────────────────── */
+    .tab-content { padding: 1.5rem; }
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+
+    /* ── AGENT 5: Stat cards — claymorphism ─────────────────────── */
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.1rem;
+      margin-bottom: 1.75rem;
+    }
+    .stat-card {
+      background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-card);
+      padding: 1.15rem 1.35rem;
+      /* Claymorphism: inset highlight + deep drop shadow */
+      box-shadow: var(--clay-shadow);
+      transition: box-shadow 0.22s ease, transform 0.14s ease;
+    }
+    .stat-card:hover {
+      box-shadow: var(--clay-highlight);
+      transform: translateY(-2px);
+    }
+    .stat-card .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+    }
+    .stat-card .stat-value {
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .stat-card .stat-sub {
+      font-size: 0.78rem;
+      color: #4e6480;
+      margin-top: 0.2rem;
+    }
+
+    /* ── Parse error details ────────────────────────────────────── */
+    .error-list {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.28);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      color: #fca5a5;
+    }
+    .error-list summary { cursor: pointer; font-weight: 600; margin-bottom: 0.4rem; }
+    .error-list ul { padding-left: 1.2rem; }
+
+    /* ── AGENT 4: Section cards — glassmorphism panels ──────────── */
+    .section-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--blur-radius)) saturate(1.3);
+      -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(1.3);
+      border: 1px solid var(--glass-border);
+      border-radius: 1rem;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 24px -4px rgba(0,0,0,0.45);
+    }
+
+    /* ── Table toolbar ──────────────────────────────────────────── */
+    .table-toolbar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.12);
+      flex-wrap: wrap;
+    }
+
+    /* ── AGENT 4: Inputs & selects — frosted controls ───────────── */
+    .table-toolbar input[type="search"],
+    .table-toolbar select {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 0.55rem;
+      color: var(--text-primary);
+      padding: 0.38rem 0.7rem;
+      font-family: inherit;
+      font-size: 0.84rem;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .table-toolbar input[type="search"]::placeholder { color: #4e6480; }
+    .table-toolbar input[type="search"]:focus,
+    .table-toolbar select:focus {
+      background: rgba(59,130,212,0.10);
+      border-color: rgba(59,130,212,0.50);
+      box-shadow: 0 0 0 3px rgba(59,130,212,0.15);
+    }
+    .table-toolbar select option { background: #161b22; color: var(--text-primary); }
+    .table-toolbar label {
+      font-size: 0.81rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* ── AGENT 4: Tables — frosted rows ─────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead th {
+      padding: 0.65rem 0.9rem;
+      text-align: left;
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      /* Sticky frosted header */
+      position: sticky;
+      top: 0;
+      background: rgba(13,17,23,0.80);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: color 0.13s;
+    }
+    thead th:hover { color: var(--text-primary); }
+    thead th.sort-asc::after  { content: " ▲"; font-size: 0.65em; }
+    thead th.sort-desc::after { content: " ▼"; font-size: 0.65em; }
+
+    /* Alternating frosted row tints */
+    tbody tr:nth-child(even) { background: rgba(255,255,255,0.025); }
+    tbody tr:nth-child(odd)  { background: transparent; }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.12s, box-shadow 0.12s; }
+    tbody tr:last-child { border-bottom: none; }
+    /* Hover glow effect */
+    tbody tr:hover {
+      background: rgba(59,130,212,0.08);
+      box-shadow: inset 3px 0 0 0 var(--accent);
+    }
+    tbody td { padding: 0.55rem 0.9rem; color: #cbd5e1; }
+
+    /* ── AGENT 4+5: Badges ──────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.12rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.69rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      /* Subtle clay pill depth */
+      box-shadow: 0 1px 3px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.12) inset;
+    }
+    /* Language badges */
+    .badge-py   { background: rgba(59,130,246,0.22);  color: #93c5fd; border: 1px solid rgba(59,130,246,0.35); }
+    .badge-js   { background: rgba(234,179,8,0.20);   color: #fde047; border: 1px solid rgba(234,179,8,0.35); }
+    .badge-ts   { background: rgba(14,165,233,0.20);  color: #7dd3fc; border: 1px solid rgba(14,165,233,0.35); }
+    /* Kind badges */
+    .badge-fn   { background: rgba(168,85,247,0.20);  color: #d8b4fe; border: 1px solid rgba(168,85,247,0.35); }
+    .badge-cls  { background: rgba(34,197,94,0.20);   color: #86efac; border: 1px solid rgba(34,197,94,0.35); }
+    .badge-async{ background: rgba(251,146,60,0.20);  color: #fdba74; border: 1px solid rgba(251,146,60,0.35); }
+    /* Dead code badge — orange */
+    .badge-dead {
+      background: rgba(249,115,22,0.22);
+      color: #fb923c;
+      border: 1px solid rgba(249,115,22,0.40);
+      animation: deadPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes deadPulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.65; }
+    }
+
+    /* ── Complexity colour coding ───────────────────────────────── */
+    /* green (<5): default text colour */
+    .complexity-high { color: var(--danger);  font-weight: 700; }  /* >=10 */
+    .complexity-mid  { color: var(--warn); }                        /* 5-9  */
+
+    /* ── AGENT 4: Chart containers — glass card ─────────────────── */
+    .chart-wrap {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--blur-radius)) saturate(1.3);
+      -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(1.3);
+      border: 1px solid var(--glass-border);
+      border-radius: 1rem;
+      padding: 1.4rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 24px -4px rgba(0,0,0,0.45);
+    }
+    .chart-wrap canvas { max-height: 380px; }
+
+    /* ── Section headings ───────────────────────────────────────── */
+    .section-heading {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+    }
+    .section-subheading {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    /* ── AGENT 5: Pagination buttons — clay depth ───────────────── */
+    .pagination {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0.6rem 1rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      background: rgba(0,0,0,0.08);
+    }
+    .pagination button {
+      background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0.65rem;
+      color: var(--text-primary);
+      padding: 0.25rem 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.79rem;
+      box-shadow: var(--clay-shadow);
+      transition: box-shadow 0.15s, transform 0.10s, background 0.15s;
+    }
+    .pagination button:hover:not(:disabled) {
+      background: linear-gradient(145deg, rgba(59,130,212,0.18), rgba(59,130,212,0.06));
+      box-shadow: var(--clay-highlight);
+      transform: translateY(-1px);
+    }
+    .pagination button:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: var(--clay-press);
+    }
+    .pagination button:disabled { opacity: 0.30; cursor: default; }
+
+    /* ── AGENT 4: Webkit scrollbars — match theme ───────────────── */
+    ::-webkit-scrollbar              { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track        { background: rgba(13,17,23,0.8); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb        { background: rgba(255,255,255,0.14); border-radius: 4px; border: 2px solid rgba(13,17,23,0.8); }
+    ::-webkit-scrollbar-thumb:hover  { background: rgba(59,130,212,0.50); }
+    ::-webkit-scrollbar-corner       { background: transparent; }
+
+    /* ── AGENT 4+5: Responsive overrides ───────────────────────── */
+    @media (max-width: 768px) {
+      /* Single-column grid */
+      .stat-cards { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+      /* Reduce blur for mobile performance */
+      :root { --blur-radius: 8px; }
+      .nav-bar {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      .section-card, .chart-wrap {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      /* Tab strip wraps and shrinks */
+      .tab-strip { gap: 0.25rem; padding: 0.75rem 0.75rem 0; flex-wrap: wrap; }
+      .tab-btn {
+        padding: 0.4rem 0.85rem;
+        font-size: 0.81rem;
+        border-radius: 0.85rem 0.85rem 0 0;
+      }
+
+      /* Table text tighter on small screens */
+      tbody td, thead th { padding: 0.45rem 0.6rem; font-size: 0.8rem; }
+
+      /* Stat card values slightly smaller */
+      .stat-card .stat-value { font-size: 1.45rem; }
+
+      /* Padding reduction */
+      .tab-content { padding: 1rem; }
+    }
+
+    @media (max-width: 480px) {
+      .stat-cards { grid-template-columns: 1fr; }
+      .nav-bar { padding: 0.6rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA INJECTION
+     window.__COMPASS_DATA__ holds the full AnalysisResult JSON.
+     The `tojson` filter HTML-escapes <, >, & inside JSON strings.
+     ============================================================ -->
+<script>
+  window.__COMPASS_DATA__ = {{ data_json | tojson }};
+  window.__REPO_NAME__    = {{ repo_name | tojson }};
+</script>
+
+<!-- ============================================================
+     NAV BAR
+     ============================================================ -->
+<nav class="nav-bar">
+  <span class="app-name">⬡ Code Compass</span>
+  <span class="repo-path" id="nav-repo-path">—</span>
+</nav>
+
+<!-- ============================================================
+     TAB STRIP
+     ============================================================ -->
+<div class="tab-strip" role="tablist">
+  <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="tab-overview"     data-tab="overview">Overview</button>
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-files"        data-tab="files">Files</button>
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-symbols"      data-tab="symbols">Symbols</button>
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-callgraph"    data-tab="callgraph">Call Graph</button>
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-contributors" data-tab="contributors">Contributors</button>
+</div>
+
+<!-- ============================================================
+     TAB CONTENT
+     ============================================================ -->
+<div class="tab-content">
+
+  <!-- ── OVERVIEW ── -->
+  <section id="tab-overview" class="tab-section active" role="tabpanel">
+    <div class="stat-cards" id="overview-cards">
+      <!-- filled by JS -->
+    </div>
+    <details class="error-list" id="overview-errors" style="display:none">
+      <summary id="overview-errors-summary"></summary>
+      <ul id="overview-errors-list"></ul>
+    </details>
+  </section>
+
+  <!-- ── FILES ── -->
+  <section id="tab-files" class="tab-section" role="tabpanel">
+    <div class="section-card">
+      <div class="table-toolbar">
+        <label for="files-search">Filter:</label>
+        <input type="search" id="files-search" placeholder="filename or language…" />
+        <label for="files-lang">Language:</label>
+        <select id="files-lang"><option value="">All</option></select>
+      </div>
+      <div class="table-wrap">
+        <table id="files-table" aria-label="Files">
+          <thead>
+            <tr>
+              <th data-col="file"       data-type="str">File</th>
+              <th data-col="language"   data-type="str">Language</th>
+              <th data-col="size"       data-type="num">Size (B)</th>
+              <th data-col="complexity" data-type="num">Max Complexity</th>
+            </tr>
+          </thead>
+          <tbody id="files-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="files-pagination"></div>
+    </div>
+  </section>
+
+  <!-- ── SYMBOLS ── -->
+  <section id="tab-symbols" class="tab-section" role="tabpanel">
+    <div class="section-card">
+      <div class="table-toolbar">
+        <label for="symbols-search">Filter:</label>
+        <input type="search" id="symbols-search" placeholder="symbol name or file…" />
+        <label for="symbols-kind">Kind:</label>
+        <select id="symbols-kind">
+          <option value="">All</option>
+          <option value="function">function</option>
+          <option value="async_function">async function</option>
+          <option value="class">class</option>
+        </select>
+        <label for="symbols-dead">
+          <input type="checkbox" id="symbols-dead" /> Dead code only
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table id="symbols-table" aria-label="Symbols">
+          <thead>
+            <tr>
+              <th data-col="name"       data-type="str">Name</th>
+              <th data-col="kind"       data-type="str">Kind</th>
+              <th data-col="file"       data-type="str">File</th>
+              <th data-col="line"       data-type="num">Line</th>
+              <th data-col="complexity" data-type="num">Complexity</th>
+              <th data-col="dead"       data-type="str">Status</th>
+            </tr>
+          </thead>
+          <tbody id="symbols-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="symbols-pagination"></div>
+    </div>
+  </section>
+
+  <!-- ── CALL GRAPH ── -->
+  <section id="tab-callgraph" class="tab-section" role="tabpanel">
+    <p class="section-subheading">
+      Top 50 call edges by caller name. Each bar represents the number of unique callees for a caller.
+    </p>
+    <div class="chart-wrap">
+      <canvas id="callgraph-chart" aria-label="Call graph bar chart"></canvas>
+    </div>
+    <div class="section-card">
+      <div class="table-toolbar">
+        <label for="edges-search">Filter:</label>
+        <input type="search" id="edges-search" placeholder="caller or callee…" />
+      </div>
+      <div class="table-wrap">
+        <table id="edges-table" aria-label="Call edges">
+          <thead>
+            <tr>
+              <th data-col="caller" data-type="str">Caller</th>
+              <th data-col="callee" data-type="str">Callee</th>
+            </tr>
+          </thead>
+          <tbody id="edges-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="edges-pagination"></div>
+    </div>
+  </section>
+
+  <!-- ── CONTRIBUTORS ── -->
+  <section id="tab-contributors" class="tab-section" role="tabpanel">
+    <div class="chart-wrap">
+      <canvas id="contributors-chart" aria-label="Contributors bar chart"></canvas>
+    </div>
+    <div class="section-card">
+      <div class="table-wrap">
+        <table id="contributors-table" aria-label="Contributors">
+          <thead>
+            <tr>
+              <th data-col="author"        data-type="str">Author</th>
+              <th data-col="commits"       data-type="num">Commits</th>
+              <th data-col="lines_added"   data-type="num">Lines Added</th>
+              <th data-col="lines_deleted" data-type="num">Lines Deleted</th>
+              <th data-col="net"           data-type="num">Net Lines</th>
+            </tr>
+          </thead>
+          <tbody id="contributors-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /.tab-content -->
+
+<!-- ============================================================
+     INLINE SCRIPT — vanilla JS only, no framework
+     All DOM writes use textContent / createElement (never innerHTML)
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  // ── 1. Data access ────────────────────────────────────────────
+  var D = window.__COMPASS_DATA__;
+  var symbols      = D.symbols      || [];
+  var callEdges    = D.call_edges   || [];
+  var contributors = D.contributors || [];
+  var parseErrors  = D.parse_errors || [];
+  var deadCode     = new Set(D.dead_code || []);
+
+  // ── 2. Nav ────────────────────────────────────────────────────
+  document.getElementById('nav-repo-path').textContent = window.__REPO_NAME__ || '';
+
+  // ── 3. Tab router ─────────────────────────────────────────────
+  var _chartInited = {};
+
+  function showTab(id) {
+    document.querySelectorAll('.tab-section').forEach(function (s) {
+      s.classList.toggle('active', s.id === 'tab-' + id);
+    });
+    document.querySelectorAll('.tab-btn').forEach(function (b) {
+      var active = b.dataset.tab === id;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (!_chartInited[id]) {
+      _chartInited[id] = true;
+      if (id === 'callgraph')    initCallGraphChart();
+      if (id === 'contributors') initContributorsChart();
+    }
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { showTab(btn.dataset.tab); });
+  });
+
+  // ── 4. Generic helpers ────────────────────────────────────────
+
+  // Safe text cell
+  function td(text) {
+    var c = document.createElement('td');
+    c.textContent = text == null ? '' : String(text);
+    return c;
+  }
+
+  // Badge cell
+  function tdBadge(text, cls) {
+    var c = document.createElement('td');
+    var span = document.createElement('span');
+    span.className = 'badge ' + cls;
+    span.textContent = text == null ? '' : String(text);
+    c.appendChild(span);
+    return c;
+  }
+
+  // Complexity cell with colour coding
+  function tdComplexity(n) {
+    var c = document.createElement('td');
+    var v = Number(n);
+    c.textContent = String(v);
+    if (v >= 10) c.className = 'complexity-high';
+    else if (v >= 5) c.className = 'complexity-mid';
+    return c;
+  }
+
+  // Sortable-table wiring
+  function makeSortable(tableEl, getRows, renderFn) {
+    var sortCol  = null;
+    var sortDir  = 1;
+    tableEl.querySelectorAll('thead th[data-col]').forEach(function (th) {
+      th.addEventListener('click', function () {
+        var col  = th.dataset.col;
+        var type = th.dataset.type;
+        if (sortCol === col) {
+          sortDir *= -1;
+        } else {
+          sortCol = col;
+          sortDir = 1;
+        }
+        tableEl.querySelectorAll('thead th').forEach(function (h) {
+          h.classList.remove('sort-asc', 'sort-desc');
+        });
+        th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+        var rows = getRows().slice();
+        rows.sort(function (a, b) {
+          var av = a[col], bv = b[col];
+          if (type === 'num') { av = Number(av); bv = Number(bv); }
+          else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
+          return av < bv ? -sortDir : av > bv ? sortDir : 0;
+        });
+        renderFn(rows);
+      });
+    });
+  }
+
+  // Pagination helper — returns slice + renders nav buttons
+  var PAGE_SIZE = 100;
+  function paginate(items, page, paginationEl, renderPageFn) {
+    var total = items.length;
+    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    page = Math.min(Math.max(page, 0), pages - 1);
+
+    renderPageFn(items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE));
+
+    // Clear + rebuild pagination controls
+    while (paginationEl.firstChild) paginationEl.removeChild(paginationEl.firstChild);
+    var info = document.createElement('span');
+    var start = total === 0 ? 0 : page * PAGE_SIZE + 1;
+    var end   = Math.min((page + 1) * PAGE_SIZE, total);
+    info.textContent = start + '–' + end + ' of ' + total;
+    paginationEl.appendChild(info);
+
+    var prevBtn = document.createElement('button');
+    prevBtn.textContent = '‹ Prev';
+    prevBtn.disabled = page === 0;
+    prevBtn.addEventListener('click', function () { paginate(items, page - 1, paginationEl, renderPageFn); });
+    paginationEl.appendChild(prevBtn);
+
+    var nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next ›';
+    nextBtn.disabled = page === pages - 1;
+    nextBtn.addEventListener('click', function () { paginate(items, page + 1, paginationEl, renderPageFn); });
+    paginationEl.appendChild(nextBtn);
+  }
+
+  // ── 5. Overview ───────────────────────────────────────────────
+  (function buildOverview() {
+    // Aggregate file-level data from symbols (unique files)
+    var fileSet = new Set(symbols.map(function (s) { return s.file; }));
+    var totalFiles = fileSet.size;
+    var totalSymbols = symbols.length;
+
+    // Top language by file count
+    var langCount = {};
+    symbols.forEach(function (s) {
+      var ext = s.file ? s.file.split('.').pop() : '';
+      langCount[ext] = (langCount[ext] || 0) + 1;
+    });
+    var topLang = Object.keys(langCount).sort(function (a, b) {
+      return langCount[b] - langCount[a];
+    })[0] || '—';
+
+    // Top contributor by commits
+    var topContrib = contributors.length
+      ? contributors.slice().sort(function (a, b) { return b.commits - a.commits; })[0].author
+      : '—';
+
+    var cards = [
+      { label: 'Files Analysed',   value: totalFiles,    sub: 'unique source files' },
+      { label: 'Symbols Found',    value: totalSymbols,  sub: 'functions & classes' },
+      { label: 'Call Edges',       value: callEdges.length, sub: 'inter-function calls' },
+      { label: 'Contributors',     value: contributors.length, sub: 'git authors' },
+      { label: 'Top Language',     value: topLang,       sub: 'by symbol count' },
+      { label: 'Top Contributor',  value: topContrib,    sub: 'by commit count' },
+    ];
+
+    var container = document.getElementById('overview-cards');
+    cards.forEach(function (c) {
+      var card  = document.createElement('div');  card.className = 'stat-card';
+      var label = document.createElement('div');  label.className = 'stat-label';
+      var value = document.createElement('div');  value.className = 'stat-value';
+      var sub   = document.createElement('div');  sub.className = 'stat-sub';
+      label.textContent = c.label;
+      value.textContent = String(c.value);
+      sub.textContent   = c.sub;
+      card.appendChild(label);
+      card.appendChild(value);
+      card.appendChild(sub);
+      container.appendChild(card);
+    });
+
+    // Parse errors
+    if (parseErrors.length) {
+      var det = document.getElementById('overview-errors');
+      det.style.display = '';
+      var sumEl = document.getElementById('overview-errors-summary');
+      sumEl.textContent = parseErrors.length + ' file(s) skipped due to parse errors';
+      var ul = document.getElementById('overview-errors-list');
+      parseErrors.forEach(function (e) {
+        var li = document.createElement('li');
+        li.textContent = e;
+        ul.appendChild(li);
+      });
+    }
+  }());
+
+  // ── 6. Files tab ──────────────────────────────────────────────
+  (function buildFiles() {
+    // Aggregate per-file stats from symbols list
+    var byFile = {};
+    symbols.forEach(function (s) {
+      if (!byFile[s.file]) byFile[s.file] = { file: s.file, language: '', size: 0, complexity: 0, count: 0 };
+      var rec = byFile[s.file];
+      rec.count++;
+      if (s.complexity > rec.complexity) rec.complexity = s.complexity;
+      // Infer language from extension
+      var ext = s.file ? s.file.split('.').pop().toLowerCase() : '';
+      rec.language = ext === 'py' ? 'python' : ext === 'ts' || ext === 'tsx' ? 'typescript' : ext === 'js' || ext === 'jsx' ? 'javascript' : ext || '—';
+    });
+    var fileRows = Object.values(byFile);
+
+    // Populate language dropdown (safe — textContent only)
+    var langSelect = document.getElementById('files-lang');
+    var langs = Array.from(new Set(fileRows.map(function (r) { return r.language; }))).sort();
+    langs.forEach(function (l) {
+      var opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = l;
+      langSelect.appendChild(opt);
+    });
+
+    var filtered = fileRows;
+    var tbody = document.getElementById('files-tbody');
+    var paginationEl = document.getElementById('files-pagination');
+
+    function renderPage(rows) {
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        tr.appendChild(td(r.file));
+        var langCls = r.language === 'python' ? 'badge-py' : r.language === 'javascript' ? 'badge-js' : r.language === 'typescript' ? 'badge-ts' : '';
+        tr.appendChild(tdBadge(r.language, langCls));
+        tr.appendChild(td(r.size));
+        tr.appendChild(tdComplexity(r.complexity));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function refilter() {
+      var q    = document.getElementById('files-search').value.toLowerCase();
+      var lang = langSelect.value;
+      filtered = fileRows.filter(function (r) {
+        var matchQ    = !q    || r.file.toLowerCase().includes(q) || r.language.toLowerCase().includes(q);
+        var matchLang = !lang || r.language === lang;
+        return matchQ && matchLang;
+      });
+      paginate(filtered, 0, paginationEl, renderPage);
+    }
+
+    document.getElementById('files-search').addEventListener('input', refilter);
+    langSelect.addEventListener('change', refilter);
+
+    var tableEl = document.getElementById('files-table');
+    makeSortable(tableEl, function () { return filtered; }, function (rows) {
+      paginate(rows, 0, paginationEl, renderPage);
+    });
+
+    paginate(filtered, 0, paginationEl, renderPage);
+  }());
+
+  // ── 7. Symbols tab ────────────────────────────────────────────
+  (function buildSymbols() {
+    var tbody = document.getElementById('symbols-tbody');
+    var paginationEl = document.getElementById('symbols-pagination');
+    var allSymbols = symbols.slice();
+    var filtered = allSymbols;
+
+    function renderPage(rows) {
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      rows.forEach(function (s) {
+        var isDead = deadCode.has(s.name);
+        var tr = document.createElement('tr');
+        tr.appendChild(td(s.name));
+        var kindCls = s.kind === 'class' ? 'badge-cls' : 'badge-fn';
+        tr.appendChild(tdBadge(s.kind, kindCls));
+        tr.appendChild(td(s.file));
+        tr.appendChild(td(s.line));
+        tr.appendChild(tdComplexity(s.complexity));
+        tr.appendChild(isDead ? tdBadge('dead', 'badge-dead') : td('—'));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function refilter() {
+      var q    = document.getElementById('symbols-search').value.toLowerCase();
+      var kind = document.getElementById('symbols-kind').value;
+      var deadOnly = document.getElementById('symbols-dead').checked;
+      filtered = allSymbols.filter(function (s) {
+        var matchQ    = !q       || s.name.toLowerCase().includes(q) || s.file.toLowerCase().includes(q);
+        var matchKind = !kind    || s.kind === kind;
+        var matchDead = !deadOnly || deadCode.has(s.name);
+        return matchQ && matchKind && matchDead;
+      });
+      paginate(filtered, 0, paginationEl, renderPage);
+    }
+
+    document.getElementById('symbols-search').addEventListener('input', refilter);
+    document.getElementById('symbols-kind').addEventListener('change', refilter);
+    document.getElementById('symbols-dead').addEventListener('change', refilter);
+
+    var tableEl = document.getElementById('symbols-table');
+    makeSortable(tableEl, function () { return filtered; }, function (rows) {
+      paginate(rows, 0, paginationEl, renderPage);
+    });
+
+    paginate(filtered, 0, paginationEl, renderPage);
+  }());
+
+  // ── 8. Call Graph tab ─────────────────────────────────────────
+  (function buildEdgesTable() {
+    var tbody = document.getElementById('edges-tbody');
+    var paginationEl = document.getElementById('edges-pagination');
+    var allEdges = callEdges.slice();
+    var filtered = allEdges;
+
+    function renderPage(rows) {
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      rows.forEach(function (e) {
+        var tr = document.createElement('tr');
+        tr.appendChild(td(e.caller));
+        tr.appendChild(td(e.callee));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function refilter() {
+      var q = document.getElementById('edges-search').value.toLowerCase();
+      filtered = allEdges.filter(function (e) {
+        return !q || e.caller.toLowerCase().includes(q) || e.callee.toLowerCase().includes(q);
+      });
+      paginate(filtered, 0, paginationEl, renderPage);
+    }
+
+    document.getElementById('edges-search').addEventListener('input', refilter);
+
+    var tableEl = document.getElementById('edges-table');
+    makeSortable(tableEl, function () { return filtered; }, function (rows) {
+      paginate(rows, 0, paginationEl, renderPage);
+    });
+
+    paginate(filtered, 0, paginationEl, renderPage);
+  }());
+
+  function initCallGraphChart() {
+    // Aggregate: count callees per caller (top 50)
+    var callerMap = {};
+    callEdges.forEach(function (e) {
+      callerMap[e.caller] = (callerMap[e.caller] || 0) + 1;
+    });
+    var sorted = Object.keys(callerMap).sort(function (a, b) {
+      return callerMap[b] - callerMap[a];
+    }).slice(0, 50);
+
+    var canvas = document.getElementById('callgraph-chart');
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: sorted,
+        datasets: [{
+          label: 'Unique callees',
+          data: sorted.map(function (k) { return callerMap[k]; }),
+          backgroundColor: 'rgba(125,211,252,0.45)',
+          borderColor: 'rgba(125,211,252,0.9)',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (ctx) { return ctx.parsed.x + ' callee(s)'; } } }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#cbd5e1', font: { size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── 9. Contributors tab ───────────────────────────────────────
+  (function buildContributors() {
+    var tbody = document.getElementById('contributors-tbody');
+    var rows  = contributors.slice().sort(function (a, b) { return b.commits - a.commits; });
+
+    rows.forEach(function (c) {
+      var tr  = document.createElement('tr');
+      var net = c.lines_added - c.lines_deleted;
+      tr.appendChild(td(c.author));
+      tr.appendChild(td(c.commits));
+      tr.appendChild(td(c.lines_added));
+      tr.appendChild(td(c.lines_deleted));
+      var netCell = document.createElement('td');
+      netCell.textContent = (net >= 0 ? '+' : '') + net;
+      netCell.style.color = net >= 0 ? '#86efac' : '#fca5a5';
+      tr.appendChild(netCell);
+      tbody.appendChild(tr);
+    });
+
+    var tableEl = document.getElementById('contributors-table');
+    makeSortable(tableEl, function () { return rows; }, function (sorted) {
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      sorted.forEach(function (c) {
+        var tr  = document.createElement('tr');
+        var net = c.lines_added - c.lines_deleted;
+        tr.appendChild(td(c.author));
+        tr.appendChild(td(c.commits));
+        tr.appendChild(td(c.lines_added));
+        tr.appendChild(td(c.lines_deleted));
+        var netCell = document.createElement('td');
+        netCell.textContent = (net >= 0 ? '+' : '') + net;
+        netCell.style.color = net >= 0 ? '#86efac' : '#fca5a5';
+        tr.appendChild(netCell);
+        tbody.appendChild(tr);
+      });
+    });
+  }());
+
+  function initContributorsChart() {
+    var sorted = contributors.slice().sort(function (a, b) { return b.commits - a.commits; }).slice(0, 20);
+    var canvas = document.getElementById('contributors-chart');
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(function (c) { return c.author; }),
+        datasets: [
+          {
+            label: 'Commits',
+            data: sorted.map(function (c) { return c.commits; }),
+            backgroundColor: 'rgba(168,85,247,0.5)',
+            borderColor: 'rgba(168,85,247,0.9)',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: 'Lines Added',
+            data: sorted.map(function (c) { return c.lines_added; }),
+            backgroundColor: 'rgba(34,197,94,0.4)',
+            borderColor: 'rgba(34,197,94,0.8)',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: 'Lines Deleted',
+            data: sorted.map(function (c) { return c.lines_deleted; }),
+            backgroundColor: 'rgba(239,68,68,0.35)',
+            borderColor: 'rgba(239,68,68,0.8)',
+            borderWidth: 1,
+            borderRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { labels: { color: '#94a3b8' } }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', maxRotation: 40 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // ── 10. Kick off default tab ──────────────────────────────────
+  showTab('overview');
+
+}());
+</script>
+
+</body>
+</html>
