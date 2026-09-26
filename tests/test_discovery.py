@@ -75,7 +75,7 @@ def test_excludes_symlinks(tmp_repo: Path) -> None:
     manifest = discover(tmp_repo)
 
     paths = [r.path for r in manifest.files]
-    assert link_file.resolve() not in [p.resolve() for p in paths], (
+    assert link_file not in paths, (
         "Symlinked file was included in the manifest"
     )
     # The real file should still appear.
