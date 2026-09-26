@@ -100,3 +100,14 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     click.echo(f"[code-compass] Dashboard written: {written}")
     click.echo(f"[code-compass] Summary written:   {written.parent / summary_name}")
     click.echo("[code-compass] Analysis complete.")
+
+
+@main.command()
+@click.option("--host", default="0.0.0.0", show_default=True, help="Host to bind the web server to.")
+@click.option("--port", default=8000, type=int, show_default=True, help="Port to listen on.")
+def serve(host: str, port: int) -> None:
+    """Launch the standalone Code Compass web application."""
+    import uvicorn
+    click.echo(f"[code-compass] Starting web server on http://{host}:{port}")
+    uvicorn.run("code_compass.web.app:app", host=host, port=port, reload=False)
+
