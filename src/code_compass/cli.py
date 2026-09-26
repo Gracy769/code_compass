@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 
 from code_compass.analysis import analyze as run_analysis
+from code_compass.analysis.git_stats import detect_github_slug
 from code_compass.discovery import discover
 from code_compass.renderer import render
 
@@ -82,14 +83,20 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
             f"[code-compass] Semantic findings: {len(result.semantic_findings)} issue(s) identified."
         )
 
+    slug = detect_github_slug(repo)
+    if slug:
+        click.echo(f"[code-compass] GitHub slug detected: {slug}")
+
     click.echo(f"[code-compass] Writing dashboard -> {out}")
     # render() validates the output path and raises ValueError for path-traversal
     # attempts (e.g. --output ../../../../etc/passwd or --output /etc/cron.d/evil).
     # Catch it here so the user sees a clean error instead of a raw traceback.
     try:
-        written = render(result, out, repo_name=repo.name)
+        written = render(result, out, repo_name=repo.name, github_slug=slug)
     except ValueError as exc:
         click.echo(f"[code-compass] ERROR: {exc}", err=True)
         sys.exit(1)
+    summary_name = written.stem + "-summary.html"
     click.echo(f"[code-compass] Dashboard written: {written}")
+    click.echo(f"[code-compass] Summary written:   {written.parent / summary_name}")
     click.echo("[code-compass] Analysis complete.")

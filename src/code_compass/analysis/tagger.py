@@ -289,11 +289,18 @@ def classify_layer(file_path: str, symbols: list[str] | None = None) -> str:
 # ===========================================================================
 
 def extract_tags(file_path: str, content: str = "", symbol_names: list[str] | None = None) -> list[str]:
-    """Extract applicable tags from the 200+ taxonomy based on file path,
-    symbol names, and file contents."""
+    """Extract applicable tags from the 200+ taxonomy based on explicit import
+    statements (file *content*) and extracted *symbol_names* only.
+
+    The file path is intentionally excluded from the keyword search to prevent
+    folder-name false positives (e.g. a ``llama/`` directory triggering
+    ``gemini`` or ``orm`` tags that are not actually imported).
+    """
     detected = set()
     norm_path = file_path.replace("\\", "/").lower()
-    text = (content[:8192] + " " + (norm_path) + " " + " ".join(symbol_names or [])).lower()
+    # Only match against actual source content and declared symbol names —
+    # NOT against the file path / folder name.
+    text = (content[:8192] + " " + " ".join(symbol_names or [])).lower()
 
     for tag, keywords in TAG_TAXONOMY.items():
         for kw in keywords:
@@ -406,28 +413,49 @@ def generate_mermaid_architecture(
     files: list[dict],
     call_edges: list[dict],
     repo_name: str = "Repository",
+    symbols: list[dict] | None = None,
 ) -> str:
     """Synthesizes a valid, clean Mermaid architecture diagram with layer
-    subgraphs and top cross-layer dependency flow."""
-    # Group top files by layer
-    layer_files: dict[str, list[str]] = defaultdict(list)
-    file_id_map: dict[str, str] = {}
+    subgraphs and cross-layer dependency flow.
+
+    Uses ``symbols`` (if provided) to build a symbol-name → file-node-id
+    lookup so that call edges (which carry symbol names, not file paths) are
+    correctly resolved to their owning file nodes.
+    """
+    layer_files: dict[str, list[tuple]] = defaultdict(list)
+    file_id_map: dict[str, str] = {}   # path / basename → node_id
     node_counter = 1
 
-    # Take top 30 most critical files to keep the diagram readable & snappy
+    # Take top 35 most critical files to keep the diagram readable
     sorted_files = sorted(files, key=lambda x: x.get("rank_score", 0), reverse=True)[:35]
 
     for f in sorted_files:
         path = f["path"].replace("\\", "/")
         bname = path.split("/")[-1]
+        # Strip extension for a cleaner label
+        stem = bname.rsplit(".", 1)[0] if "." in bname else bname
         node_id = f"node_{node_counter}"
         node_counter += 1
         file_id_map[path] = node_id
         file_id_map[bname] = node_id
+        file_id_map[stem] = node_id
         layer = f.get("layer", "core")
-        layer_files[layer].append((node_id, bname, f.get("rank_score", 0)))
+        layer_files[layer].append((node_id, stem, f.get("rank_score", 0)))
 
-    lines = ["flowchart TD", f"  %% Architecture Topology for {repo_name}", ""]
+    # Build symbol-name → node_id map from the symbols list (if available)
+    # This is the primary lookup: call edges carry symbol names, not paths.
+    sym_to_node: dict[str, str] = {}
+    if symbols:
+        for s in symbols:
+            sym_name = s.get("name") if isinstance(s, dict) else getattr(s, "name", "")
+            sym_file = s.get("file") if isinstance(s, dict) else getattr(s, "file", "")
+            if sym_name and sym_file:
+                sym_file_norm = sym_file.replace("\\", "/")
+                nid = file_id_map.get(sym_file_norm) or file_id_map.get(sym_file_norm.split("/")[-1])
+                if nid:
+                    sym_to_node[sym_name] = nid
+
+    lines = ["flowchart TD", f"  %% Architecture Topology — {repo_name}", ""]
 
     # Layer subgraphs
     for layer, items in layer_files.items():
@@ -435,40 +463,52 @@ def generate_mermaid_architecture(
             continue
         title = LAYER_LABELS.get(layer, layer.capitalize())
         lines.append(f'  subgraph sub_{layer} ["{title}"]')
-        for node_id, bname, score in items:
-            # Highlight tier 1
+        for node_id, stem, score in items:
             if score >= 15:
-                lines.append(f'    {node_id}[["★ {bname}"]]')
+                lines.append(f'    {node_id}[["★ {stem}"]]')
             else:
-                lines.append(f'    {node_id}["{bname}"]')
+                lines.append(f'    {node_id}["{stem}"]')
         lines.append("  end")
         lines.append("")
 
-    # Add edges between top files
-    edge_seen = set()
+    # Emit directional edges: symbol lookup first, then basename fallback
+    edge_seen: set[tuple[str, str]] = set()
     added_edges = 0
 
     for edge in call_edges:
+        if added_edges >= 50:
+            break
         caller = edge.get("caller") if isinstance(edge, dict) else edge.caller
         callee = edge.get("callee") if isinstance(edge, dict) else edge.callee
 
-        caller_base = caller.split(".")[-1]
-        callee_base = callee.split(".")[-1]
+        # Try symbol lookup (most precise)
+        c1 = sym_to_node.get(caller)
+        c2 = sym_to_node.get(callee)
 
-        c1 = file_id_map.get(caller_base) or file_id_map.get(caller)
-        c2 = file_id_map.get(callee_base) or file_id_map.get(callee)
+        # Fallback: strip qualified prefix (e.g. "module.func" → "func")
+        if not c1:
+            c1 = file_id_map.get(caller) or file_id_map.get(caller.split(".")[-1])
+        if not c2:
+            c2 = file_id_map.get(callee) or file_id_map.get(callee.split(".")[-1])
 
         if c1 and c2 and c1 != c2:
             key = (c1, c2)
-            if key not in edge_seen and added_edges < 40:
+            if key not in edge_seen:
                 edge_seen.add(key)
                 lines.append(f"  {c1} --> {c2}")
                 added_edges += 1
 
-    # Styling
+    # Apply class styles
     lines.append("")
     lines.append("  classDef default fill:#161b22,stroke:#30363d,stroke-width:1px,color:#e2e8f0;")
     lines.append("  classDef tier1 fill:#1e3a8a,stroke:#3b82d4,stroke-width:2px,color:#ffffff;")
+
+    # Mark tier-1 nodes
+    tier1_nodes = [node_id for node_id, _, score in
+                   [item for items in layer_files.values() for item in items]
+                   if score >= 15]
+    if tier1_nodes:
+        lines.append("  class " + ",".join(tier1_nodes) + " tier1;")
 
     return "\n".join(lines)
 

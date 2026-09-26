@@ -76,27 +76,42 @@ def _safe_output_path(output_path: Path) -> Path:
     return resolved
 
 
-def render(result: object, output_path: Path, *, repo_name: str = "") -> Path:
+def render(
+    result: object,
+    output_path: Path,
+    *,
+    repo_name: str = "",
+    github_slug: str = "",
+) -> Path:
     """Serialize *result* (an :class:`~code_compass.analysis.models.AnalysisResult`)
-    to JSON, render the Jinja2 dashboard template, and write the HTML to
-    *output_path*.
+    to JSON, render the Jinja2 dashboard and summary templates, and write both
+    HTML files to disk.
 
     Parameters
     ----------
     result:
         An ``AnalysisResult`` dataclass instance.
     output_path:
-        Destination ``.html`` file.  Relative paths must resolve inside
-        :func:`Path.cwd` to prevent path-traversal attacks.
+        Destination ``.html`` file for the main dashboard.  Relative paths must
+        resolve inside :func:`Path.cwd` to prevent path-traversal attacks.
     repo_name:
         Human-readable repository name shown in the dashboard title and nav bar.
+    github_slug:
+        Optional ``"owner/repo"`` slug used to build GitHub file links in the
+        summary page (e.g. ``"fastapi/fastapi"``).  Defaults to ``""`` (no links).
 
     Returns
     -------
     Path
-        The resolved, absolute path of the written file.
+        The resolved, absolute path of the written dashboard file.
     """
     safe_path = _safe_output_path(output_path)
+    summary_path = safe_path.parent / (safe_path.stem + "-summary.html")
+
+    # Relative filename used in the dashboard → summary cross-link
+    summary_url = safe_path.stem + "-summary.html"
+    # Relative filename used in the summary → dashboard back-link
+    dashboard_url = safe_path.name
 
     # Serialize: dataclasses.asdict() recurses into nested dataclasses and
     # produces plain dicts/lists that json.dumps handles directly.
@@ -107,13 +122,25 @@ def render(result: object, output_path: Path, *, repo_name: str = "") -> Path:
         loader=FileSystemLoader(str(_TEMPLATES_DIR)),
         autoescape=select_autoescape(["html", "j2"]),
     )
-    template = env.get_template("dashboard.html.j2")
+
+    # Shared template context
+    ctx = dict(
+        data_json=data_json,
+        repo_name=repo_name,
+        github_slug=github_slug,
+        summary_url=summary_url,
+        dashboard_url=dashboard_url,
+    )
 
     # tojson is Jinja2's built-in filter; it HTML-escapes <, >, & inside JSON
     # strings, so even attacker-controlled repo content (e.g. a git author
     # name containing <script>) cannot break out of the JS string context.
-    html = template.render(data_json=data_json, repo_name=repo_name)
-
     safe_path.parent.mkdir(parents=True, exist_ok=True)
-    safe_path.write_text(html, encoding="utf-8")
+
+    dashboard_html = env.get_template("dashboard.html.j2").render(**ctx)
+    safe_path.write_text(dashboard_html, encoding="utf-8")
+
+    summary_html = env.get_template("summary.html.j2").render(**ctx)
+    summary_path.write_text(summary_html, encoding="utf-8")
+
     return safe_path
