@@ -38,6 +38,7 @@ class ContributorStat:
     avatar_url: str = ""
     github_handle: str = ""
     rank: int = 0
+    line_stats_available: bool = True
 
 
 @dataclass

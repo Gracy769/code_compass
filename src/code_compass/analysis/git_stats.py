@@ -111,8 +111,9 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
             ContributorStat(
                 author=login,
                 commits=contribs,
-                lines_added=contribs * 60,
-                lines_deleted=contribs * 20,
+                lines_added=0,
+                lines_deleted=0,
+                line_stats_available=False,
                 avatar_url=item.get("avatar_url", ""),
                 github_handle=login,
                 rank=i + 1,
