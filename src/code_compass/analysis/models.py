@@ -14,6 +14,9 @@ class SymbolInfo:
     file: str          # str (not Path) for JSON-serializability
     line: int
     complexity: int    # McCabe cyclomatic complexity (1 for classes / JS symbols)
+    tags: list[str] = field(default_factory=list)
+    layer: str = "core"
+    rank_score: float = 0.0
 
 
 @dataclass
@@ -30,26 +33,41 @@ class ContributorStat:
 
     author: str
     commits: int
-    lines_added: int
-    lines_deleted: int
+    lines_added: int = 0
+    lines_deleted: int = 0
+    avatar_url: str = ""
+    github_handle: str = ""
+    rank: int = 0
+
+
+@dataclass
+class FileMetadata:
+    """Architectural classification and ranking metadata for a single file."""
+
+    path: str
+    language: str = "python"
+    size: int = 0
+    complexity: int = 1
+    symbols_count: int = 0
+    layer: str = "core"
+    ranking_tier: str = "Tier 3: Supporting"
+    rank_score: float = 0.0
+    in_degree: int = 0
+    out_degree: int = 0
+    tags: list[str] = field(default_factory=list)
+    rank: int = 0
 
 
 @dataclass
 class SemanticFinding:
-    """A single LLM-generated semantic audit finding for one source file.
-
-    In Phase 1 the findings are produced by a deterministic stub
-    (``_call_llm`` in ``semantic_auditor``).  In Phase 2 the stub is
-    replaced by a real LLM client without changing this dataclass or any
-    downstream consumer.
-    """
+    """A single LLM-generated semantic audit finding for one source file."""
 
     file: str          # str (not Path) for JSON-serializability
     severity: str      # 'high' | 'medium' | 'low'
     category: str      # 'race_condition' | 'state_mutation' | 'error_handling' | 'insecure_defaults'
     summary: str       # one-line description (≤ 120 chars)
     detail: str        # multi-sentence explanation
-    prompt_used: str   # exact prompt sent to the LLM, or '[mock]' for stubs
+    prompt_used: str = "[mock]"  # exact prompt sent to the LLM, or '[mock]' for stubs
 
 
 @dataclass
@@ -62,3 +80,7 @@ class AnalysisResult:
     parse_errors: list[str] = field(default_factory=list)
     dead_code: list[str] = field(default_factory=list)
     semantic_findings: list[SemanticFinding] = field(default_factory=list)
+    files: list[FileMetadata] = field(default_factory=list)
+    architecture_mermaid: str = ""
+    ai_system_prompt: str = ""
+    repo_stats: dict[str, object] = field(default_factory=dict)
