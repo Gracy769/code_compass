@@ -34,26 +34,23 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
         if record.language not in ("python", "javascript", "typescript"):
             continue
 
+        rel_path = record.path.relative_to(manifest.root).as_posix()
+
         try:
             if record.language == "python":
                 symbols, edges = analyze_python(record.path)
             else:
                 symbols, edges = analyze_js(record.path, record.language)
         except MemoryError:
-            result.parse_errors.append(f"{record.path}: MemoryError — file skipped")
+            result.parse_errors.append(f"{rel_path}: MemoryError — file skipped")
             continue
         except Exception as exc:  # noqa: BLE001
-            result.parse_errors.append(f"{record.path}: {exc}")
+            result.parse_errors.append(f"{rel_path}: {type(exc).__name__}")
             continue
-
-        rel_path = str(record.path)
-        try:
-            rel_path = str(record.path.relative_to(manifest.root))
-        except ValueError:
-            pass
 
         # Tag each symbol and assign layer
         for s in symbols:
+            s.file = rel_path
             s_layer = classify_layer(s.file, [s.name])
             s_tags = extract_tags(s.file, symbol_names=[s.name])
             s.layer = s_layer
@@ -91,7 +88,7 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
             continue
         rel = str(record.path)
         try:
-            rel = str(record.path.relative_to(manifest.root))
+            rel = record.path.relative_to(manifest.root).as_posix()
         except ValueError:
             pass
         if rel in seen_paths:
@@ -158,7 +155,7 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
     avg_cx = sum(s.complexity for s in result.symbols) / total_syms
     high_cx_count = sum(1 for s in result.symbols if s.complexity >= 10)
     high_cx_ratio = high_cx_count / total_syms
-    health_score = max(65, min(98, int(100 - (avg_cx * 4) - (high_cx_ratio * 30))))
+    health_score = max(0, min(100, int(100 - (avg_cx * 4) - (high_cx_ratio * 30)))) if result.symbols else None
     result.repo_stats = {
         "health_score": health_score,
         "total_files": len(result.files),
@@ -167,6 +164,8 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
         "total_contributors": len(result.contributors),
         "dead_code_count": len(result.dead_code),
         "dead_code_ratio": dead_ratio,
+        "average_complexity": round(avg_cx, 2),
+        "semantic_status": "unavailable" if semantic else "disabled",
     }
 
     return result

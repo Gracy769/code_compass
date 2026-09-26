@@ -9,20 +9,30 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import secrets
 import shutil
+import subprocess
+import sys
 import tempfile
+import time
 import uuid
-import zipfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from code_compass.analysis import analyze as run_analysis
-from code_compass.analysis.git_stats import detect_github_slug
 from code_compass.discovery import discover
 from code_compass.renderer import render
+from code_compass.web.security import (
+    MAX_CLONE_SECONDS,
+    MAX_UPLOAD_BYTES,
+    canonical_github_url,
+    check_run_owner,
+    cleanup_expired_runs,
+)
 
 app = FastAPI(
     title="Code Compass Web",
@@ -31,7 +41,10 @@ app = FastAPI(
 )
 
 STORAGE_DIR = Path(tempfile.gettempdir()) / "code_compass_web_runs"
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+STORAGE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+STORAGE_DIR.chmod(0o700)
+JOB_SLOTS = asyncio.Semaphore(2)
+SESSION_COOKIE = "code_compass_session"
 
 
 class GitAnalyzeRequest(BaseModel):
@@ -39,6 +52,56 @@ class GitAnalyzeRequest(BaseModel):
     strict: bool = True
     semantic: bool = False
     token: str | None = None
+
+
+def _session(request: Request) -> str:
+    origin = request.headers.get("origin")
+    if origin and urlsplit(origin).netloc != request.headers.get("host"):
+        raise HTTPException(status_code=403, detail="Cross-origin analysis is not allowed.")
+    session = request.cookies.get(SESSION_COOKIE, "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", session):
+        raise HTTPException(status_code=403, detail="Open the homepage before starting an analysis.")
+    return session
+
+
+def _new_run(request: Request) -> tuple[str, Path]:
+    session = _session(request)
+    cleanup_expired_runs(STORAGE_DIR, time.time())
+    run_id = f"run_{uuid.uuid4().hex[:12]}"
+    work_dir = STORAGE_DIR / run_id
+    work_dir.mkdir(parents=True, mode=0o700)
+    (work_dir / "owner").write_text(session, encoding="ascii")
+    return run_id, work_dir
+
+
+def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "") -> None:
+    env = os.environ.copy()
+    if token:
+        env["CODE_COMPASS_CLONE_TOKEN"] = token
+    command = [sys.executable, "-m", "code_compass.web.worker", kind, source, str(work_dir)]
+    if strict:
+        command.append("--strict")
+    if semantic:
+        command.append("--semantic")
+    if name:
+        command.extend(("--name", name))
+    try:
+        completed = subprocess.run(command, env=env, capture_output=True, text=True, timeout=MAX_CLONE_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("Analysis exceeded the time limit.") from exc
+    if completed.returncode:
+        raise RuntimeError("Analysis failed. Check the repository URL or ZIP contents.")
+
+
+async def _bounded_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "") -> None:
+    try:
+        await asyncio.wait_for(JOB_SLOTS.acquire(), timeout=0.1)
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=429, detail="Analysis is busy. Please retry shortly.") from exc
+    try:
+        await asyncio.to_thread(_run_worker, kind, source, work_dir, strict=strict, semantic=semantic, token=token, name=name)
+    finally:
+        JOB_SLOTS.release()
 
 
 # Embedded responsive Cyberpunk Hero Landing Page
@@ -326,15 +389,18 @@ LANDING_HTML = """<!DOCTYPE html>
     }
     .progress-bar-fill {
       height: 100%;
-      width: 45%;
+      width: 0;
       background: linear-gradient(90deg, #00b4d8, #38bdf8);
       border-radius: 9999px;
       transition: width 0.4s ease;
-      animation: pulse-bar 2s ease-in-out infinite;
     }
-    @keyframes pulse-bar {
-      0%, 100% { opacity: 0.7; }
-      50% { opacity: 1; filter: drop-shadow(0 0 6px var(--accent-sky)); }
+    .progress-bar-fill.running {
+      width: 35%;
+      animation: progress-scan 1.3s ease-in-out infinite alternate;
+    }
+    @keyframes progress-scan {
+      from { transform: translateX(0); }
+      to { transform: translateX(185%); }
     }
 
     /* Interactive Topology Canvas */
@@ -460,6 +526,17 @@ LANDING_HTML = """<!DOCTYPE html>
       main { grid-template-columns: 1fr; gap: 2.5rem; }
       .headline { font-size: 2.75rem; }
     }
+    @media (max-width: 640px) {
+      nav { padding: 1rem; }
+      .nav-links { gap: 0.75rem; }
+      main { padding: 2rem 1rem; min-width: 0; }
+      .hero-left, .hero-right { min-width: 0; }
+      .headline { font-size: clamp(2rem, 9vw, 2.75rem); overflow-wrap: anywhere; }
+      .presets { flex-wrap: wrap; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .status-card { flex-wrap: wrap; }
+      footer { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    }
   </style>
 </head>
 <body>
@@ -522,7 +599,7 @@ LANDING_HTML = """<!DOCTYPE html>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-            Connect GitHub
+            Use GitHub Token
           </button>
 
           <a href="/dashboard/demo" class="btn btn-secondary" style="border-color: rgba(0, 180, 216, 0.4); color: var(--accent-sky);">
@@ -582,8 +659,8 @@ LANDING_HTML = """<!DOCTYPE html>
             </svg>
           </div>
           <div>
-            <div class="metric-val" id="fileCountVal">6,600+</div>
-            <div class="metric-lbl">Max Parse Capacity</div>
+            <div class="metric-val" id="fileCountVal">—</div>
+            <div class="metric-lbl">Files after analysis</div>
           </div>
         </div>
 
@@ -594,8 +671,8 @@ LANDING_HTML = """<!DOCTYPE html>
             </svg>
           </div>
           <div>
-            <div class="metric-val">0.75s</div>
-            <div class="metric-lbl">AST Processing Velocity</div>
+            <div class="metric-val">—</div>
+            <div class="metric-lbl">Measured AST time</div>
           </div>
         </div>
 
@@ -606,8 +683,8 @@ LANDING_HTML = """<!DOCTYPE html>
             </svg>
           </div>
           <div>
-            <div class="metric-val">100%</div>
-            <div class="metric-lbl">Zero-Panic Guarantee</div>
+            <div class="metric-val">—</div>
+            <div class="metric-lbl">Critical findings</div>
           </div>
         </div>
       </div>
@@ -617,12 +694,12 @@ LANDING_HTML = """<!DOCTYPE html>
   <!-- GitHub Token Modal -->
   <div class="modal-backdrop" id="tokenModal">
     <div class="modal-box">
-      <div class="modal-title">Connect GitHub</div>
-      <div class="modal-sub">Enter a personal access token for higher rate limits and private repository access.</div>
+      <div class="modal-title">Use a GitHub token</div>
+      <div class="modal-sub">For a private repository, enter a token with access to that repository. It is sent to this server for this analysis and is not saved in your browser.</div>
       <input type="password" id="ghTokenInput" class="modal-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeTokenModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveToken()">Save Token</button>
+        <button class="btn btn-primary" onclick="saveToken()">Use for this analysis</button>
       </div>
     </div>
   </div>
@@ -733,18 +810,20 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     // Modal
+    let githubToken = null;
+    const query = new URLSearchParams(window.location.search);
+    if (query.has('repo')) document.getElementById('repoUrlInput').value = query.get('repo');
+    if (query.get('connect') === '1') openTokenModal();
     function openTokenModal() {
       document.getElementById('tokenModal').style.display = 'flex';
-      const saved = localStorage.getItem('code_compass_gh_token');
-      if (saved) document.getElementById('ghTokenInput').value = saved;
     }
     function closeTokenModal() {
       document.getElementById('tokenModal').style.display = 'none';
     }
     function saveToken() {
       const val = document.getElementById('ghTokenInput').value.trim();
-      if (val) localStorage.setItem('code_compass_gh_token', val);
-      else localStorage.removeItem('code_compass_gh_token');
+      githubToken = val || null;
+      document.getElementById('ghTokenInput').value = '';
       closeTokenModal();
     }
 
@@ -759,7 +838,7 @@ LANDING_HTML = """<!DOCTYPE html>
       setAnalyzingState('CLONING & PARSING CODEBASE', 'Ingesting files, building AST, and mapping call relationships...');
 
       try {
-        const token = localStorage.getItem('code_compass_gh_token') || null;
+        const token = githubToken;
         const res = await fetch('/api/analyze-git', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -767,10 +846,12 @@ LANDING_HTML = """<!DOCTYPE html>
         });
 
         const data = await res.json();
+        githubToken = null;
         if (!res.ok) throw new Error(data.detail || 'Analysis failed');
 
+        document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
-        document.getElementById('statusTitle').textContent = '100% COMPLETE';
+        document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
         document.getElementById('statusSub').textContent = 'Redirecting to interactive dashboard...';
 
         setTimeout(() => {
@@ -801,8 +882,9 @@ LANDING_HTML = """<!DOCTYPE html>
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Zip analysis failed');
 
+        document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
-        document.getElementById('statusTitle').textContent = '100% COMPLETE';
+        document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
         setTimeout(() => {
           window.location.href = data.dashboard_url;
         }, 800);
@@ -816,7 +898,8 @@ LANDING_HTML = """<!DOCTYPE html>
     function setAnalyzingState(title, sub) {
       document.getElementById('statusTitle').textContent = title;
       document.getElementById('statusSub').textContent = sub;
-      document.getElementById('progressBar').style.width = '75%';
+      document.getElementById('progressBar').style.width = '';
+      document.getElementById('progressBar').classList.add('running');
       document.getElementById('analyzeBtn').disabled = true;
       document.getElementById('analyzeBtn').style.opacity = '0.6';
     }
@@ -824,7 +907,8 @@ LANDING_HTML = """<!DOCTYPE html>
     function resetState() {
       document.getElementById('statusTitle').textContent = 'READY FOR INGESTION';
       document.getElementById('statusSub').textContent = 'Enter repository URL or upload ZIP';
-      document.getElementById('progressBar').style.width = '15%';
+      document.getElementById('progressBar').classList.remove('running');
+      document.getElementById('progressBar').style.width = '0';
       document.getElementById('analyzeBtn').disabled = false;
       document.getElementById('analyzeBtn').style.opacity = '1';
     }
@@ -835,9 +919,16 @@ LANDING_HTML = """<!DOCTYPE html>
 
 
 @app.get("/", response_class=HTMLResponse)
-async def homepage() -> HTMLResponse:
+async def homepage(request: Request) -> HTMLResponse:
     """Serve the Cult UI-inspired Cyberpunk Hero Landing Page."""
-    return HTMLResponse(content=LANDING_HTML, status_code=200)
+    response = HTMLResponse(content=LANDING_HTML, status_code=200)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", request.cookies.get(SESSION_COOKIE, "")):
+        response.set_cookie(
+            SESSION_COOKIE, secrets.token_urlsafe(32), httponly=True,
+            secure=request.url.hostname not in {"localhost", "127.0.0.1"},
+            samesite="strict", max_age=24 * 60 * 60,
+        )
+    return response
 
 
 @app.get("/health")
@@ -847,97 +938,61 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/api/analyze-git")
-async def analyze_git_repo(req: GitAnalyzeRequest) -> dict[str, str]:
+async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str, str]:
     """Clone a public/private Git repository and run Code Compass analysis."""
-    repo_url = req.url.strip()
-    if not repo_url.startswith(("http://", "https://", "git@")):
-        raise HTTPException(status_code=400, detail="Invalid Git repository URL.")
-
-    run_id = f"run_{uuid.uuid4().hex[:12]}"
-    work_dir = STORAGE_DIR / run_id
-    clone_dir = work_dir / "repo"
-    clone_dir.mkdir(parents=True, exist_ok=True)
-
-    # Inject token if provided
-    auth_url = repo_url
-    if req.token and "github.com" in repo_url and repo_url.startswith("https://"):
-        auth_url = repo_url.replace("https://", f"https://x-access-token:{req.token}@")
-
-    # Run git clone in a thread pool to avoid blocking async loop
-    def _clone_and_analyze() -> tuple[Path, str]:
-        import git
-
-        git.Repo.clone_from(auth_url, clone_dir, depth=1)
-        manifest = discover(clone_dir)
-        result = run_analysis(manifest, strict=req.strict, semantic=req.semantic)
-        slug = detect_github_slug(clone_dir) or ""
-
-        out_dashboard = work_dir / "dashboard.html"
-        written = render(result, out_dashboard, repo_name=clone_dir.name, github_slug=slug)
-        return written, run_id
+    try:
+        repo_url = canonical_github_url(req.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    run_id, work_dir = _new_run(request)
 
     try:
-        _, analysis_id = await asyncio.to_thread(_clone_and_analyze)
+        await _bounded_worker("git", repo_url, work_dir, strict=req.strict, semantic=req.semantic, token=req.token or "")
     except Exception as exc:
         shutil.rmtree(work_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Git ingestion error: {exc}")
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail="Repository analysis failed or timed out.") from exc
 
     return {
         "success": "true",
-        "analysis_id": analysis_id,
-        "dashboard_url": f"/dashboard/{analysis_id}",
-        "summary_url": f"/summary/{analysis_id}",
+        "analysis_id": run_id,
+        "dashboard_url": f"/dashboard/{run_id}",
+        "summary_url": f"/summary/{run_id}",
     }
 
 
 @app.post("/api/analyze-upload")
-async def analyze_zip_upload(file: UploadFile = File(...)) -> dict[str, str]:
+async def analyze_zip_upload(request: Request, file: UploadFile = File(...)) -> dict[str, str]:
     """Accept and extract a repository ZIP file and run analysis."""
-    if not file.filename.endswith(".zip"):
+    if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only .zip files are supported.")
 
-    run_id = f"run_{uuid.uuid4().hex[:12]}"
-    work_dir = STORAGE_DIR / run_id
-    extract_dir = work_dir / "repo"
-    extract_dir.mkdir(parents=True, exist_ok=True)
-
+    run_id, work_dir = _new_run(request)
     zip_path = work_dir / "upload.zip"
 
     try:
-        content = await file.read()
-        zip_path.write_bytes(content)
-
-        def _extract_and_analyze() -> tuple[Path, str]:
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                # Basic zip-slip protection
-                for member in zf.namelist():
-                    resolved = (extract_dir / member).resolve()
-                    if not str(resolved).startswith(str(extract_dir.resolve())):
-                        raise ValueError("Zip file contains unsafe path traversal paths.")
-                zf.extractall(extract_dir)
-
-            # If zip contains a single root folder, inspect inside it
-            candidates = [p for p in extract_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
-            target_repo = candidates[0] if len(candidates) == 1 else extract_dir
-
-            manifest = discover(target_repo)
-            result = run_analysis(manifest, strict=True, semantic=False)
-
-            out_dashboard = work_dir / "dashboard.html"
-            written = render(result, out_dashboard, repo_name=file.filename.replace(".zip", ""))
-            return written, run_id
-
-        _, analysis_id = await asyncio.to_thread(_extract_and_analyze)
+        total = 0
+        with zip_path.open("wb") as output:
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="ZIP exceeds the 25 MB upload limit.")
+                output.write(chunk)
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", file.filename.replace("\\", "/").split("/")[-1])[:80]
+        await _bounded_worker("zip", str(zip_path), work_dir, strict=True, name=safe_name.removesuffix(".zip"))
 
     except Exception as exc:
         shutil.rmtree(work_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Upload error: {exc}")
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail="ZIP analysis failed or timed out.") from exc
 
     return {
         "success": "true",
-        "analysis_id": analysis_id,
-        "dashboard_url": f"/dashboard/{analysis_id}",
-        "summary_url": f"/summary/{analysis_id}",
+        "analysis_id": run_id,
+        "dashboard_url": f"/dashboard/{run_id}",
+        "summary_url": f"/summary/{run_id}",
     }
 
 
@@ -945,92 +1000,51 @@ async def analyze_zip_upload(file: UploadFile = File(...)) -> dict[str, str]:
 async def seed_demo_analysis() -> None:
     """Pre-generate a live demo dashboard on startup so visitors can view it instantly."""
     demo_dir = STORAGE_DIR / "demo"
-    if not (demo_dir / "dashboard.html").exists():
-        try:
-            demo_dir.mkdir(parents=True, exist_ok=True)
-            # Analyze local code-compass source as demo
-            local_src = Path(__file__).parent.parent
-            manifest = discover(local_src)
-            result = run_analysis(manifest, strict=True, semantic=False)
-            out_dashboard = demo_dir / "dashboard.html"
-            render(result, out_dashboard, repo_name="code-compass-core", github_slug="Gracy769/code-compass-app")
-            print("[code-compass] Seeded live demo dashboard at /dashboard/demo")
-        except Exception as err:
-            print(f"[code-compass] Demo seed note: {err}")
+    cleanup_expired_runs(STORAGE_DIR, time.time())
+    try:
+        demo_dir.mkdir(parents=True, exist_ok=True)
+        local_src = Path(__file__).parent.parent
+        started = time.perf_counter()
+        manifest = discover(local_src)
+        result = run_analysis(manifest, strict=True, semantic=False)
+        result.repo_stats["analysis_seconds"] = round(time.perf_counter() - started, 2)
+        render(result, demo_dir / "dashboard.html", repo_name="code-compass-core", github_slug="Gracy769/code-compass-app")
+        print("[code-compass] Seeded live demo dashboard at /dashboard/demo")
+    except Exception as err:
+        print(f"[code-compass] Demo seed note: {err}")
 
 
-@app.get("/dashboard/{analysis_id:path}", response_class=HTMLResponse)
-async def view_dashboard(analysis_id: str):
-    """Serve the generated dashboard for a specific analysis run with dynamic link rewriting."""
-    parts = analysis_id.strip("/").split("/")
-    actual_id = parts[0]
-
-    # Handle direct relative click: /dashboard/dashboard-summary.html
-    if "summary" in actual_id.lower():
-        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
-        target = recent[0].name if recent else "demo"
-        return RedirectResponse(url=f"/summary/{target}")
-
-    # Handle sub-path: /dashboard/run_xxx/dashboard-summary.html
-    if len(parts) > 1 and "summary" in parts[1].lower():
-        return RedirectResponse(url=f"/summary/{actual_id}")
-
-    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", actual_id)
-    dash_path = STORAGE_DIR / clean_id / "dashboard.html"
-
-    if not dash_path.exists():
-        # Fall back to demo or most recent run
-        if (STORAGE_DIR / "demo" / "dashboard.html").exists():
-            return RedirectResponse(url="/dashboard/demo")
-        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
-        if recent and (recent[0] / "dashboard.html").exists():
-            return RedirectResponse(url=f"/dashboard/{recent[0].name}")
-        raise HTTPException(
-            status_code=404,
-            detail="Dashboard not found or expired. Please run a new analysis from the homepage.",
-        )
-
+@app.get("/dashboard/{analysis_id}", response_class=HTMLResponse)
+async def view_dashboard(analysis_id: str, request: Request):
+    """Serve one run only to the browser session that started it."""
+    if analysis_id != "demo" and not re.fullmatch(r"run_[a-f0-9]{12}", analysis_id):
+        raise HTTPException(status_code=404, detail="Dashboard not found.")
+    run_dir = STORAGE_DIR / analysis_id
+    dash_path = run_dir / "dashboard.html"
+    if not dash_path.is_file():
+        raise HTTPException(status_code=404, detail="Dashboard not found.")
+    if analysis_id != "demo" and not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        raise HTTPException(status_code=404, detail="Dashboard not found.")
     content = dash_path.read_text(encoding="utf-8")
     # Dynamically rewrite relative summary links to FastAPI route
-    content = content.replace('href="dashboard-summary.html"', f'href="/summary/{clean_id}"')
-    content = re.sub(r'href="[^"]*-summary\.html"', f'href="/summary/{clean_id}"', content)
-    return HTMLResponse(content=content, status_code=200)
+    content = content.replace('"dashboard-summary.html"', f'"/summary/{analysis_id}"')
+    return HTMLResponse(content=content, status_code=200, headers={"Cache-Control": "private, no-store"})
 
 
-@app.get("/summary/{analysis_id:path}", response_class=HTMLResponse)
-async def view_summary(analysis_id: str):
+@app.get("/summary/{analysis_id}", response_class=HTMLResponse)
+async def view_summary(analysis_id: str, request: Request):
     """Serve the companion summary page for a specific analysis run."""
-    parts = analysis_id.strip("/").split("/")
-    actual_id = parts[0]
-
-    # Handle direct relative click: /summary/dashboard.html
-    if "dashboard" in actual_id.lower():
-        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
-        target = recent[0].name if recent else "demo"
-        return RedirectResponse(url=f"/dashboard/{target}")
-
-    # Handle sub-path: /summary/run_xxx/dashboard.html
-    if len(parts) > 1 and "dashboard" in parts[1].lower():
-        return RedirectResponse(url=f"/dashboard/{actual_id}")
-
-    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", actual_id)
-    summary_path = STORAGE_DIR / clean_id / "dashboard-summary.html"
-
-    if not summary_path.exists():
-        if (STORAGE_DIR / "demo" / "dashboard-summary.html").exists():
-            return RedirectResponse(url="/summary/demo")
-        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
-        if recent and (recent[0] / "dashboard-summary.html").exists():
-            return RedirectResponse(url=f"/summary/{recent[0].name}")
-        raise HTTPException(
-            status_code=404,
-            detail="Summary not found or expired. Please run a new analysis from the homepage.",
-        )
+    if analysis_id != "demo" and not re.fullmatch(r"run_[a-f0-9]{12}", analysis_id):
+        raise HTTPException(status_code=404, detail="Summary not found.")
+    run_dir = STORAGE_DIR / analysis_id
+    summary_path = run_dir / "dashboard-summary.html"
+    if not summary_path.is_file():
+        raise HTTPException(status_code=404, detail="Summary not found.")
+    if analysis_id != "demo" and not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        raise HTTPException(status_code=404, detail="Summary not found.")
 
     content = summary_path.read_text(encoding="utf-8")
     # Dynamically rewrite relative dashboard links to FastAPI route
-    content = content.replace('href="dashboard.html"', f'href="/dashboard/{clean_id}"')
-    content = content.replace('href="fastapi-dashboard.html"', f'href="/dashboard/{clean_id}"')
-    content = re.sub(r'href="[^"]*dashboard\.html"', f'href="/dashboard/{clean_id}"', content)
-    return HTMLResponse(content=content, status_code=200)
+    content = content.replace('href="dashboard.html"', f'href="/dashboard/{analysis_id}"')
+    return HTMLResponse(content=content, status_code=200, headers={"Cache-Control": "private, no-store"})
 

@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Code Compass — {{ repo_name }}</title>
-  <!-- Chart.js loaded from CDN (primary chart library) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* ============================================================
        CODE COMPASS — ADVANCED GLASS/CLAY ARCHITECTURE DESIGN SYSTEM
@@ -834,6 +832,21 @@
     .hero-metric-val { font-size: 1.2rem; font-weight: 800; color: #ffffff; line-height: 1.2; }
     .hero-metric-val em { color: #38bdf8; font-style: normal; }
     .hero-metric-label { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    @media (max-width: 640px) {
+      .sidebar, .sidebar.collapsed { width: 52px; }
+      .sidebar-brand-text, .sidebar-nav-label, .sidebar-footer-label { display: none; }
+      #main-layout, #main-layout.sidebar-collapsed { margin-left: 52px; width: calc(100% - 52px); }
+      .nav-bar { padding: 0.6rem; flex-wrap: wrap; }
+      .nav-bar .repo-badge { max-width: 150px; }
+      .tab-content { padding: 0.75rem; }
+      .hero-section { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+      .hero-left, .hero-right { min-width: 0; padding: 1rem 0; }
+      .hero-headline { font-size: clamp(1.5rem, 7vw, 2rem); overflow-wrap: anywhere; }
+      .hero-input-wrap input { min-width: 0; }
+      .hero-metrics, .stat-cards { grid-template-columns: minmax(0, 1fr); }
+      .bento-grid { grid-template-columns: minmax(0, 1fr); }
+      .bento-col-4, .bento-col-6, .bento-col-8, .bento-col-12 { grid-column: 1; }
+    }
   </style>
 </head>
 <body>
@@ -915,17 +928,12 @@
     <span class="repo-badge" id="nav-repo-path">{{ repo_name }}</span>
   </div>
   <nav class="nav-actions">
-    <a href="#" class="nav-link">Docs</a>
+    <a href="https://github.com/Gracy769/code-compass-app#readme" target="_blank" rel="noopener noreferrer" class="nav-link">Docs</a>
     {% if github_slug %}
     <a href="https://github.com/{{ github_slug }}" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
-    {% else %}
-    <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
     {% endif %}
   </nav>
 </header>
-
-<!-- ── Hidden elements needed by modals / hero JS ───────────────── -->
-<input type="file" id="local-folder-picker" webkitdirectory directory multiple style="display:none" />
 
 <!-- ── Content Container ───────────────────────────────────────── -->
 <div class="tab-content">
@@ -948,11 +956,11 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text-secondary);flex-shrink:0;">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
-          <input type="text" id="hero-repo-input" placeholder="Paste GitHub URL or local path" />
+          <input type="text" id="hero-repo-input" placeholder="Paste a GitHub repository URL" />
         </div>
 
         <div class="hero-buttons">
-          <button class="hero-analyze-btn" onclick="showToast('Analyzing… paste a local path and use the CLI: uv run code-compass analyze <path>');">
+          <button class="hero-analyze-btn" onclick="window.location.href='/?repo='+encodeURIComponent(document.getElementById('hero-repo-input').value);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Analyze Codebase
           </button>
@@ -960,15 +968,15 @@
             <svg id="gh-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-            <span id="gh-btn-label">Sign in with GitHub</span>
+            <span id="gh-btn-label">Use GitHub Token</span>
           </button>
         </div>
 
         <div class="hero-chips">
           <span class="hero-chip-label">Quick-launch:</span>
-          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='transformers'">transformers</button>
-          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='fastapi'">fastapi</button>
-          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='redis'">redis</button>
+          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Fhuggingface%2Ftransformers'">transformers</button>
+          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Ffastapi%2Ffastapi'">fastapi</button>
+          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Fredis%2Fredis'">redis</button>
         </div>
       </div>
 
@@ -978,8 +986,8 @@
         <div class="hero-status-card">
           <div class="hero-spinner"></div>
           <div class="hero-status-info">
-            <div class="hero-status-title">Parsing Codebase</div>
-            <div class="hero-status-sub">Scanning files, building AST, and mapping relationships... 100% Complete</div>
+            <div class="hero-status-title">Analysis complete</div>
+            <div class="hero-status-sub">Results from this repository</div>
             <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.4rem;">
               <div class="hero-progress-bar" style="flex:1;"><div class="hero-progress-fill"></div></div>
               <span class="hero-progress-pct">100%</span>
@@ -1017,7 +1025,7 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
             <div>
-              <div class="hero-metric-val"><em>0.75s</em> AST</div>
+              <div class="hero-metric-val"><em id="hero-analysis-time">—</em> AST</div>
               <div class="hero-metric-label">Parse and analyze</div>
             </div>
           </div>
@@ -1026,8 +1034,8 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <div>
-              <div class="hero-metric-val"><em id="hero-panic-count">0</em> Panic</div>
-              <div class="hero-metric-label">Critical issues</div>
+              <div class="hero-metric-val"><em id="hero-panic-count">—</em> High findings</div>
+              <div class="hero-metric-label" id="hero-panic-label">Semantic audit status</div>
             </div>
           </div>
         </div>
@@ -1051,17 +1059,17 @@
           </div>
           <div>
             <div style="font-weight:700; font-size:1.05rem; color:#ffffff;" id="health-tier">Excellent Health</div>
-            <div style="font-size:0.8rem; color:var(--text-secondary);">Automated AST structural & safety audit score</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">Estimated structural score from complexity</div>
           </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:0.55rem; font-size:0.82rem;">
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Modularity Index</span>
-            <span style="color:#86efac; font-weight:600;">High (0.84)</span>
+            <span style="color:#86efac; font-weight:600;">Not measured</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Cyclomatic Complexity</span>
-            <span style="color:#93c5fd; font-weight:600;">Low Risk (Avg 2.4)</span>
+            <span style="color:#93c5fd; font-weight:600;" id="overview-avg-complexity">—</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Dead Code Ratio</span>
@@ -1241,7 +1249,7 @@
         </select>
       </div>
       <div id="semantic-empty" style="display:none; padding: 2rem; text-align:center; color: var(--text-secondary);">
-        No semantic findings — run with <code>--semantic</code> to enable LLM-powered audit.
+        Semantic auditing is not configured. No security conclusion is available from this tab.
       </div>
       <table class="data-table" id="semantic-table" style="display:none">
         <thead>
@@ -1258,61 +1266,6 @@
     </div>
   </section>
 
-</div>
-
-<!-- ── GitHub Token Modal ───────────────────────────────────────── -->
-<div class="modal-overlay" id="modal-gh-token">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h3 class="modal-title" style="display:flex;align-items:center;gap:0.6rem;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#60a5fa;">
-          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-        </svg>
-        Paste your GitHub Token
-      </h3>
-      <button class="modal-close" onclick="closeModal('modal-gh-token')">&times;</button>
-    </div>
-    <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.6;">
-      A GitHub token page just opened in a new tab.<br/>
-      Copy the generated token and paste it below to activate<br/>
-      <strong style="color:#93c5fd;">Upload from GitHub</strong>.
-    </p>
-    <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-      style="width:100%; padding:0.65rem 0.9rem; border-radius:8px; border:1px solid rgba(255,255,255,0.18); background:#080d1a; color:#fff; font-size:0.9rem; outline:none; margin-bottom:1rem;" />
-    <div style="display:flex; gap:0.6rem;">
-      <button class="action-btn action-btn-primary" style="flex:1; justify-content:center;" id="btn-save-gh-token">
-        Save Token &amp; Sign In
-      </button>
-      <button class="action-btn" style="justify-content:center;" onclick="closeModal('modal-gh-token')">Cancel</button>
-    </div>
-    <p style="font-size:0.72rem; color:var(--text-secondary); margin-top:0.85rem;">Token is stored only in your browser&apos;s localStorage and never sent to any server.</p>
-  </div>
-</div>
-
-<!-- ── GitHub Import Modal ──────────────────────────────────────── -->
-<div class="modal-overlay" id="modal-import-gh">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h3 class="modal-title">Upload / Import from GitHub</h3>
-      <button class="modal-close" onclick="closeModal('modal-import-gh')">&times;</button>
-    </div>
-    <div style="margin-bottom:1.25rem;">
-      <label style="display:block; margin-bottom:0.5rem; font-size:0.82rem; color:var(--text-secondary);">GitHub Repository (owner/repo or full URL):</label>
-      <input type="text" id="import-gh-input" placeholder="e.g. fastapi/fastapi or pallets/flask" style="width:100%; padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:#080d1a; color:#fff; font-size:0.9rem;" value="fastapi/fastapi" />
-      <div style="margin-top:0.75rem;">
-        <span style="font-size:0.75rem; color:var(--text-secondary);">Popular repositories:</span>
-        <div class="tag-cloud" style="margin-top:0.35rem;">
-          <span class="tag-pill" onclick="document.getElementById('import-gh-input').value='fastapi/fastapi';">fastapi/fastapi</span>
-          <span class="tag-pill" onclick="document.getElementById('import-gh-input').value='Gracy769/code-compass-app';">Gracy769/code-compass-app</span>
-          <span class="tag-pill" onclick="document.getElementById('import-gh-input').value='tiangolo/sqlmodel';">tiangolo/sqlmodel</span>
-          <span class="tag-pill" onclick="document.getElementById('import-gh-input').value='pallets/flask';">pallets/flask</span>
-        </div>
-      </div>
-    </div>
-    <button class="action-btn action-btn-primary" style="width:100%; justify-content:center;" onclick="triggerGitHubImport();">
-      Fetch &amp; Analyze Repository
-    </button>
-  </div>
 </div>
 
 <div id="toast-msg"></div>
@@ -1348,6 +1301,10 @@
   var mermaidArch  = D.architecture_mermaid || '';
   var aiPrompt     = D.ai_system_prompt || '';
   var repoStats    = D.repo_stats   || {};
+  function escapeHtml(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   // ── 2. Nav, Toast & Sidebar ────────────────────────────────────
   document.getElementById('nav-repo-path').textContent = window.__REPO_NAME__ || '';
@@ -1384,64 +1341,8 @@
     });
   }());
 
-  // ── Dynamic GitHub Button (used by Hero section) ──────────────
-  window.updateGhButton = function() {
-    var token = localStorage.getItem('cc_gh_token');
-    var btn   = document.getElementById('btn-gh-dynamic');
-    var label = document.getElementById('gh-btn-label');
-    var icon  = document.getElementById('gh-btn-icon');
-    if (!btn) return;
-    if (token) {
-      btn.classList.add('action-btn-primary');
-      label.textContent = 'Upload from GitHub';
-      icon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>';
-      icon.setAttribute('viewBox','0 0 24 24');
-      icon.setAttribute('fill','none');
-      icon.setAttribute('stroke','currentColor');
-      icon.setAttribute('stroke-width','2');
-    } else {
-      btn.classList.remove('action-btn-primary');
-      label.textContent = 'Sign in with GitHub';
-    }
-  };
-  window.updateGhButton();
-
-  document.addEventListener('click', function(e) {
-    var btn = e.target.closest('#btn-gh-dynamic');
-    if (!btn) return;
-    var token = localStorage.getItem('cc_gh_token');
-    if (!token) {
-      window.open('https://github.com/settings/tokens/new?scopes=repo,read:org&description=CodeCompass','_blank','noopener,noreferrer');
-      document.getElementById('gh-token-input').value = '';
-      document.getElementById('modal-gh-token').classList.add('active');
-    } else {
-      document.getElementById('modal-import-gh').classList.add('active');
-    }
-  });
-
-  document.getElementById('btn-save-gh-token').addEventListener('click', function() {
-    var t = document.getElementById('gh-token-input').value.trim();
-    if (!t) { showToast('Please paste your token first.'); return; }
-    localStorage.setItem('cc_gh_token', t);
-    closeModal('modal-gh-token');
-    window.updateGhButton();
-    showToast('Signed in to GitHub!');
-  });
-
-  document.getElementById('gh-token-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') document.getElementById('btn-save-gh-token').click();
-  });
-
-  window.triggerGitHubImport = function() {
-    var repo = document.getElementById('import-gh-input').value.trim();
-    closeModal('modal-import-gh');
-    showToast('Analyzing repository ' + repo + '…');
-  };
-
-  document.getElementById('local-folder-picker').addEventListener('change', function(e) {
-    if (e.target.files.length) {
-      showToast('Loaded ' + e.target.files.length + ' local files!');
-    }
+  document.getElementById('btn-gh-dynamic').addEventListener('click', function() {
+    window.location.href = '/?connect=1';
   });
 
   // ── 3. Tab Router ─────────────────────────────────────────────
@@ -1538,23 +1439,23 @@
     var totalSymbols = symbols.length;
 
     var langCount = {};
-    symbols.forEach(function (s) {
-      var ext = s.file ? s.file.split('.').pop() : '';
-      langCount[ext] = (langCount[ext] || 0) + 1;
+    files.forEach(function (f) {
+      if (!['python', 'javascript', 'typescript'].includes(f.language)) return;
+      langCount[f.language] = (langCount[f.language] || 0) + 1;
     });
     var topLang = Object.keys(langCount).sort(function (a, b) {
       return langCount[b] - langCount[a];
-    })[0] || 'python';
+    })[0] || 'unknown';
 
     var topContrib = contributors.length
       ? contributors.slice().sort(function (a, b) { return b.commits - a.commits; })[0].author
-      : 'Maintainers';
+      : 'Unavailable';
 
     var cards = [
-      { label: 'Files Analysed',  value: totalFiles,          sub: 'unique source files' },
+      { label: 'Files Indexed',   value: totalFiles,          sub: 'eligible repository files' },
       { label: 'Symbols Found',   value: totalSymbols,        sub: 'functions & classes' },
-      { label: 'Call Edges',      value: callEdges.length,    sub: 'inter-module dependencies' },
-      { label: 'Contributors',    value: contributors.length, sub: 'top contributors synced' },
+      { label: 'Call Edges',      value: callEdges.length,    sub: 'detected call expressions' },
+      { label: 'Contributors',    value: contributors.length, sub: repoStats.contributor_history === 'shallow clone' ? 'shallow clone history' : 'available history' },
       { label: 'Top Language',    value: topLang.toUpperCase(),sub: 'dominant ecosystem' },
       { label: 'Top Contributor', value: topContrib,          sub: 'most active committer' },
     ];
@@ -1575,9 +1476,12 @@
     });
 
     // Health Scorecard
-    var hScore = repoStats.health_score || 96;
+    var hScore = repoStats.health_score ?? '—';
     document.getElementById('health-inner').textContent = String(hScore);
     document.getElementById('overview-dead-ratio').textContent = (repoStats.dead_code_ratio || 0.0) + '%';
+    document.getElementById('overview-avg-complexity').textContent = 'Avg ' + (repoStats.average_complexity ?? '—');
+    document.getElementById('health-tier').textContent = typeof hScore === 'number'
+      ? (hScore >= 85 ? 'Lower complexity' : 'Higher complexity') : 'No symbols analyzed';
 
     // Architecture Matrix: layer breakdown
     var layerLabels = {
@@ -1627,11 +1531,15 @@
       var totalFiles = files.length || (new Set(symbols.map(function(s){ return s.file; }))).size;
       filesEl.textContent = totalFiles.toLocaleString();
     }
+    document.getElementById('hero-analysis-time').textContent = repoStats.analysis_seconds == null
+      ? '—' : repoStats.analysis_seconds + 's';
     // Panic count = semantic findings with severity 'high'
     var panicEl = document.getElementById('hero-panic-count');
     if (panicEl) {
       var panics = (D.semantic_findings || []).filter(function(f){ return f.severity === 'high'; });
-      panicEl.textContent = panics.length;
+      panicEl.textContent = repoStats.semantic_status === 'available' ? panics.length : '—';
+      document.getElementById('hero-panic-label').textContent = repoStats.semantic_status === 'available'
+        ? 'High-severity audit findings' : 'Semantic audit unavailable';
     }
 
     // Canvas topology
@@ -1741,10 +1649,13 @@
   function loadMermaid(callback) {
     if (window.mermaid) { callback(); return; }
     var script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js';
+    script.integrity = 'sha384-enVdc7lTHDGtpROV85t9+VqPC2EyyB0hsRD0MrvQnHUsHmTHIz2D8SPP4EnBkstH';
+    script.crossOrigin = 'anonymous';
     script.onload = function() {
       window.mermaid.initialize({
         startOnLoad: false,
+        securityLevel: 'strict',
         theme: 'dark',
         themeVariables: {
           darkMode: true,
@@ -1886,8 +1797,8 @@
           '</div>';
         tr.appendChild(shareTd);
 
-        tr.appendChild(td('+' + (c.lines_added || 0).toLocaleString()));
-        tr.appendChild(td('-' + (c.lines_deleted || 0).toLocaleString()));
+        tr.appendChild(td(c.line_stats_available === false ? '—' : '+' + (c.lines_added || 0).toLocaleString()));
+        tr.appendChild(td(c.line_stats_available === false ? '—' : '-' + (c.lines_deleted || 0).toLocaleString()));
 
         tbody.appendChild(tr);
       });
@@ -1947,7 +1858,7 @@
         var pct = Math.round((item.count / maxCount) * 100);
         var label = item.name.length > 18 ? item.name.slice(0, 17) + '…' : item.name;
         return '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:3px;">' +
-          '<span style="width:120px; font-size:0.72rem; color:var(--text-secondary); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0;" title="' + item.name + '">' + label + '</span>' +
+           '<span style="width:120px; font-size:0.72rem; color:var(--text-secondary); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0;" title="' + escapeHtml(item.name) + '">' + escapeHtml(label) + '</span>' +
           '<div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">' +
             '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg,#3b82d4,#8b5cf6); border-radius:3px;"></div>' +
           '</div>' +
@@ -1987,9 +1898,9 @@
           ? ' <span style="font-size:0.68rem;background:rgba(139,92,246,0.25);color:#c4b5fd;border-radius:4px;padding:1px 5px;margin-left:3px;">×' + item.count + '</span>'
           : '';
         tr.innerHTML =
-          '<td style="font-weight:600; color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0;" title="' + item.name + '">' + item.name + countBadge + '</td>' +
-          '<td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0; color:var(--text-secondary); font-size:0.8rem;" title="' + item.file + '">' + file + '</td>' +
-          '<td><span class="badge ' + (LAYER_BADGE_CLS[layer] || 'badge-core') + '">' + layer + '</span></td>' +
+          '<td style="font-weight:600; color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0;" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + countBadge + '</td>' +
+          '<td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0; color:var(--text-secondary); font-size:0.8rem;" title="' + escapeHtml(item.file) + '">' + escapeHtml(file) + '</td>' +
+          '<td><span class="badge ' + (LAYER_BADGE_CLS[layer] || 'badge-core') + '">' + escapeHtml(layer) + '</span></td>' +
           '<td style="text-align:right; color:#93c5fd; font-weight:600; font-size:0.82rem;">' + item.count + '</td>';
         tbody.appendChild(tr);
       });
@@ -2000,7 +1911,7 @@
       list.forEach(function(c) {
         var row = document.createElement('div');
         row.style.cssText = 'padding:0.45rem 0.75rem; border-radius:7px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:0.84rem; transition:background 0.12s;';
-        row.innerHTML = '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%; color:#e2e8f0;" title="' + c + '">' + c + '</span>' +
+        row.innerHTML = '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%; color:#e2e8f0;" title="' + escapeHtml(c) + '">' + escapeHtml(c) + '</span>' +
           '<span style="color:var(--text-secondary); font-size:0.75rem; flex-shrink:0; margin-left:0.5rem;">' + (callerMap[c] || 0) + '</span>';
         row.addEventListener('mouseenter', function() { row.style.background = 'rgba(59,130,212,0.12)'; });
         row.addEventListener('mouseleave', function() { row.style.background = selected === c ? 'rgba(59,130,212,0.2)' : ''; });
