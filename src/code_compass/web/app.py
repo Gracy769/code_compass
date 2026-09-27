@@ -1059,6 +1059,27 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     // GitHub Auth & Repo Picker
+    // Auto-detect OAuth tokens in URL hash from Supabase redirect
+    (function checkOAuthHash() {
+      if (window.location.hash) {
+        try {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const pToken = hashParams.get('provider_token');
+          const aToken = hashParams.get('access_token');
+          if (pToken) {
+            localStorage.setItem('gh_token', pToken);
+          }
+          if (aToken) {
+            localStorage.setItem('sb_access_token', aToken);
+          }
+          if (pToken || aToken) {
+            // Clean up the URL hash cleanly without reloading
+            history.replaceState(null, '', window.location.pathname);
+          }
+        } catch (_) {}
+      }
+    })();
+
     function _hasGitHubCredential() {
       return !!(localStorage.getItem('gh_token') || localStorage.getItem('sb_access_token'));
     }
@@ -1069,7 +1090,11 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     async function openRepoPicker() {
-      const data = await fetch('/api/repos').then(r => r.json()).catch(() => ({ repos: [], authenticated: false }));
+      const ghToken = localStorage.getItem('gh_token') || '';
+      const data = await fetch('/api/repos', {
+        headers: ghToken ? { 'Authorization': 'Bearer ' + ghToken } : {}
+      }).then(r => r.json()).catch(() => ({ repos: [], authenticated: false }));
+
       if (!data.authenticated || !data.repos.length) { openTokenModal(); return; }
       const list = document.getElementById('repoPickerList');
       list.innerHTML = '';
@@ -1140,27 +1165,29 @@ async def auth_callback(request: Request):
     """Exchange Supabase OAuth code for a session and redirect to homepage."""
     code = request.query_params.get("code")
     if not code:
-        return RedirectResponse(url="/?auth_error=1")
+        # Implicit hash-based redirect carries fragments automatically
+        return RedirectResponse(url="/")
     try:
         from code_compass.cache_manager import _get_client
         client = _get_client()
         if client is None:
-            return RedirectResponse(url="/?auth_error=1")
+            return RedirectResponse(url="/")
         session_data = client.auth.exchange_code_for_session({"auth_code": code})
         access_token = session_data.session.access_token if session_data and session_data.session else None
         if not access_token:
-            return RedirectResponse(url="/?auth_error=1")
+            return RedirectResponse(url="/")
         response = RedirectResponse(url="/")
         response.set_cookie("sb_session", access_token, httponly=True, samesite="strict", max_age=3600)
         return response
     except Exception:
-        return RedirectResponse(url="/?auth_error=1")
+        return RedirectResponse(url="/")
 
 
 @app.get("/api/repos")
 async def list_repos(request: Request) -> dict:
-    """Return the authenticated user's GitHub repos via Supabase OAuth token."""
-    token = request.cookies.get("sb_session", "")
+    """Return the authenticated user's GitHub repos via GitHub provider token or session."""
+    auth_hdr = request.headers.get("Authorization", "")
+    token = auth_hdr.replace("Bearer ", "").strip() if auth_hdr.startswith("Bearer ") else request.cookies.get("sb_session", "")
     if not token:
         return {"repos": [], "authenticated": False}
     try:
@@ -1168,7 +1195,7 @@ async def list_repos(request: Request) -> dict:
         import urllib.request
         req2 = urllib.request.Request(
             "https://api.github.com/user/repos?per_page=30&sort=updated",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "Code-Compass"}
         )
         with urllib.request.urlopen(req2, timeout=5) as resp:
             repos = _json.loads(resp.read())
@@ -1178,6 +1205,7 @@ async def list_repos(request: Request) -> dict:
         }
     except Exception:
         return {"repos": [], "authenticated": False}
+
 
 
 @app.post("/api/analyze-git")
