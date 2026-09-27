@@ -144,5 +144,8 @@ def save_cache(
         }
         client.table("analysis_cache").upsert(row).execute()
         return True
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"CACHE SAVE FAILED: {e}")
         return False
