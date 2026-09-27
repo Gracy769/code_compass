@@ -44,7 +44,8 @@ def test_cached_github_analysis_keeps_source_links(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "render", render_stub)
     with TestClient(web_module.app, base_url="https://testserver") as client:
         client.get("/")
-        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"})
+        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
+                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", "")})
     assert response.status_code == 200
     assert rendered[-1]["github_slug"] == "o/r"
     assert rendered[-1]["github_ref"] == ref
