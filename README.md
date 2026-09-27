@@ -23,8 +23,9 @@ For a private GitHub repository, the page accepts a personal access token for on
 
 - Python analysis uses the standard-library AST; JavaScript and TypeScript use tree-sitter.
 - The dashboard shows symbols, call relationships, contributor statistics, file rankings, architecture diagrams and a structural complexity score. Call relationships and rankings are heuristics.
-- Web Git clones are shallow. Their contributor counts cover only fetched history. ZIP uploads have no Git history.
-- Semantic auditing is **not configured**. The `--semantic` option currently generates no findings. Do not interpret an empty semantic tab as a clean security audit.
+- Web Git analysis uses GitHub's contributor API when available, including real account names and commit counts. Addition/deletion totals come from GitHub's separate contributor statistics when ready; otherwise those values show a dash. The full fetched Git history is the fallback. ZIP uploads have no Git history.
+- The web dashboard's Semantic Audit tab lets you provide an OpenAI-compatible HTTPS chat completions endpoint, model ID, and one-time API key after analysis. It sends excerpts from up to 12 ranked source files to that provider, validates the returned file names and severities, and stores only findings in the temporary run. Verify every finding against the code. The CLI `--semantic` option still generates no findings because no provider is configured there.
+- The small codebase map uses ranked files and detected calls from the analyzed repository. The architecture diagram shows up to 15 ranked files and 18 links; drag to pan and scroll to zoom.
 - The browser app is not an Electron desktop app and does not ingest a local folder path; use the CLI for local paths or upload a ZIP.
 
 ## Tests

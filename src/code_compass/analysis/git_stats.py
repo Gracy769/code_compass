@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
 import re
-import shutil
-import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -70,35 +69,44 @@ def _detect_github_slug(root: Path) -> tuple[str, str] | None:
 
 
 def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorStat]:
-    """Fetch top 100 contributors via GitHub CLI `gh` or public API."""
+    """Fetch top 100 contributors, using only the token supplied for this run."""
     data = []
+    line_stats: dict[str, tuple[int, int]] = {}
+    headers = {
+        "User-Agent": "Code-Compass-Agent/1.0",
+        "Accept": "application/vnd.github+json",
+    }
+    token = os.environ.get("CODE_COMPASS_CLONE_TOKEN", "")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        url = f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=100"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read(1_000_001).decode("utf-8"))
+    except Exception:
+        data = []
 
-    # Try authenticated gh CLI first (bypasses rate limits)
-    if shutil.which("gh"):
+    # GitHub computes weekly addition/deletion totals separately. It can
+    # return 202 while rebuilding, so absent totals remain explicitly unknown.
+    if data:
         try:
-            cmd = ["gh", "api", f"repos/{owner}/{repo}/contributors?per_page=100", "--paginate=false"]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
-            if res.returncode == 0 and res.stdout.strip():
-                data = json.loads(res.stdout)
-        except Exception:
-            data = []
-
-    # Fallback to direct HTTP request
-    if not data:
-        try:
-            url = f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=100"
-            req = urllib.request.Request(
-                url,
-                headers={
-                    "User-Agent": "Code-Compass-Agent/1.0",
-                    "Accept": "application/vnd.github.v3+json",
-                },
-            )
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=8) as resp:
                 if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
+                    details = json.loads(resp.read(5_000_001).decode("utf-8"))
+                    if isinstance(details, list):
+                        for item in details:
+                            login = (item.get("author") or {}).get("login")
+                            weeks = item.get("weeks", [])
+                            if login and isinstance(weeks, list):
+                                line_stats[login] = (
+                                    sum(int(week.get("a", 0)) for week in weeks),
+                                    sum(int(week.get("d", 0)) for week in weeks),
+                                )
         except Exception:
-            data = []
+            pass
 
     if not isinstance(data, list):
         return []
@@ -111,9 +119,9 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
             ContributorStat(
                 author=login,
                 commits=contribs,
-                lines_added=0,
-                lines_deleted=0,
-                line_stats_available=False,
+                lines_added=line_stats.get(login, (0, 0))[0],
+                lines_deleted=line_stats.get(login, (0, 0))[1],
+                line_stats_available=login in line_stats,
                 avatar_url=item.get("avatar_url", ""),
                 github_handle=login,
                 rank=i + 1,
@@ -125,8 +133,8 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
 def collect_git_stats(root: Path) -> list[ContributorStat]:
     """Return per-author commit and line-change stats for the repo at *root*.
 
-    If *root* is not a local Git repository or has 0 commits, attempts to sync
-    top 100 contributors from GitHub.
+    Prefer GitHub's contributor identities and commit counts for a repository
+    with a verified GitHub remote. Use the complete local history otherwise.
     """
     stats_map: dict[str, dict] = {}
     has_local_git = False
@@ -139,6 +147,13 @@ def collect_git_stats(root: Path) -> list[ContributorStat]:
         has_local_git = False
 
     if has_local_git:
+        # The API resolves renamed author emails to real GitHub accounts and
+        # includes bots. A shallow local log cannot provide an accurate list.
+        slug = _detect_github_slug(root)
+        if slug:
+            github_stats = _fetch_github_api_contributors(*slug)
+            if github_stats:
+                return github_stats
         try:
             with repo:
                 log_output: str = repo.git.log("--numstat", "--format=%ae|%an")
@@ -183,19 +198,11 @@ def collect_git_stats(root: Path) -> list[ContributorStat]:
                 commits=data["commits"],
                 lines_added=data["lines_added"],
                 lines_deleted=data["lines_deleted"],
-                avatar_url=f"https://www.gravatar.com/avatar/{abs(hash(email)) % 1000000}?d=identicon",
-                github_handle=data["name"],
+                avatar_url="",
+                github_handle="",
                 rank=i + 1,
             )
             for i, (email, data) in enumerate(sorted_stats)
         ]
-
-    # If no local git log found (e.g. zip download), sync with GitHub!
-    slug = _detect_github_slug(root)
-    if slug:
-        owner, repo_name = slug
-        gh_stats = _fetch_github_api_contributors(owner, repo_name)
-        if gh_stats:
-            return gh_stats
 
     return []

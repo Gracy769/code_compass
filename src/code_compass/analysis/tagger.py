@@ -426,8 +426,9 @@ def generate_mermaid_architecture(
     file_id_map: dict[str, str] = {}   # path / basename → node_id
     node_counter = 1
 
-    # Take top 35 most critical files to keep the diagram readable
-    sorted_files = sorted(files, key=lambda x: x.get("rank_score", 0), reverse=True)[:35]
+    # Keep the first view readable while retaining an explorable graph.
+    sorted_files = sorted(files, key=lambda x: x.get("rank_score", 0), reverse=True)[:15]
+    top_nodes = {f"node_{i}" for i in range(1, min(3, len(sorted_files)) + 1)}
 
     for f in sorted_files:
         path = f["path"].replace("\\", "/")
@@ -464,7 +465,7 @@ def generate_mermaid_architecture(
         title = LAYER_LABELS.get(layer, layer.capitalize())
         lines.append(f'  subgraph sub_{layer} ["{title}"]')
         for node_id, stem, score in items:
-            if score >= 15:
+            if node_id in top_nodes:
                 lines.append(f'    {node_id}[["★ {stem}"]]')
             else:
                 lines.append(f'    {node_id}["{stem}"]')
@@ -476,7 +477,7 @@ def generate_mermaid_architecture(
     added_edges = 0
 
     for edge in call_edges:
-        if added_edges >= 50:
+        if added_edges >= 18:
             break
         caller = edge.get("caller") if isinstance(edge, dict) else edge.caller
         callee = edge.get("callee") if isinstance(edge, dict) else edge.callee
@@ -504,9 +505,7 @@ def generate_mermaid_architecture(
     lines.append("  classDef tier1 fill:#1e3a8a,stroke:#3b82d4,stroke-width:2px,color:#ffffff;")
 
     # Mark tier-1 nodes
-    tier1_nodes = [node_id for node_id, _, score in
-                   [item for items in layer_files.values() for item in items]
-                   if score >= 15]
+    tier1_nodes = [f"node_{i}" for i in range(1, min(3, len(sorted_files)) + 1)]
     if tier1_nodes:
         lines.append("  class " + ",".join(tier1_nodes) + " tier1;")
 
@@ -524,6 +523,7 @@ def generate_ai_system_prompt(
     ranked_files: list[dict],
     contributors: list[dict],
     semantic_findings: list[dict],
+    semantic_status: str = "unavailable",
 ) -> str:
     """Produces an exhaustive, production-grade LLM codebase system prompt
     for ChatGPT / Claude / Gemini."""
@@ -540,7 +540,10 @@ def generate_ai_system_prompt(
              for f in semantic_findings[:5]]
         )
     else:
-        findings_summary = "- No high-severity security or race-condition findings recorded."
+        findings_summary = (
+            "- No findings returned for the reviewed files; this is not a security guarantee."
+            if semantic_status == "available" else "- Semantic audit has not run. No security conclusion is available."
+        )
 
     prompt = f"""# Codebase Architectural Blueprint & System Context Directive
 
@@ -550,7 +553,7 @@ Your role is to guide the user in designing features, refactoring critical modul
 ## 1. High-Level Repository Profile
 - **Repository Name**: {repo_name}
 - **Scale**: {total_files} analyzed source files with {len(symbols)} tracked functions & classes.
-- **Top Contributors**: {', '.join([c.get('author', '') for c in contributors[:5]]) if contributors else 'Open source maintainers'}
+- **Top Contributors**: {', '.join([c.get('author', '') for c in contributors[:5]]) if contributors else 'Unavailable'}
 
 ## 2. Architectural Layer Hierarchy
 The codebase is partitioned into distinct layers:
