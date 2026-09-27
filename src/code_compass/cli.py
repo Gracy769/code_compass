@@ -11,6 +11,7 @@ from code_compass.analysis import analyze as run_analysis
 from code_compass.analysis.git_stats import detect_github_slug
 from code_compass.discovery import discover
 from code_compass.renderer import render
+from code_compass.cache_manager import compute_hash, load_cache, save_cache
 
 
 @click.group()
@@ -50,38 +51,51 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     if semantic:
         click.echo("[code-compass] Semantic audit is not configured; no semantic findings will be generated.")
 
-    manifest = discover(repo)
-    total = len(manifest.files)
-    parseable = sum(1 for f in manifest.files if not f.is_binary and not f.too_large)
-    click.echo(
-        f"[code-compass] Discovered {total} file(s) "
-        f"({parseable} parseable, {total - parseable} skipped)."
-    )
+    from git import Repo
+    try:
+        repo_ref = Repo(repo, search_parent_directories=False).head.commit.hexsha
+    except Exception:
+        repo_ref = ""
 
-    click.echo("[code-compass] Analysing symbols…")
-    result = run_analysis(manifest, strict=strict, semantic=semantic, prefer_local_contributors=True)
+    hash_str = compute_hash(str(repo), repo_ref)
+    cached = load_cache(hash_str, ttl_days=30)
 
-    sym_count = len(result.symbols)
-    edge_count = len(result.call_edges)
-    contrib_count = len(result.contributors)
-    click.echo(
-        f"[code-compass] Found {sym_count} symbol(s), "
-        f"{edge_count} call edge(s), "
-        f"{contrib_count} contributor(s)."
-    )
-    if result.parse_errors:
+    if cached is not None:
+        click.echo("[code-compass] Loaded analysis from Supabase cache!")
+        result = cached
+    else:
+        manifest = discover(repo)
+        total = len(manifest.files)
+        parseable = sum(1 for f in manifest.files if not f.is_binary and not f.too_large)
         click.echo(
-            f"[code-compass] {len(result.parse_errors)} file(s) skipped due to parse errors.",
-            err=True,
+            f"[code-compass] Discovered {total} file(s) "
+            f"({parseable} parseable, {total - parseable} skipped)."
         )
-    if strict and result.dead_code:
+
+        click.echo("[code-compass] Analysing symbols…")
+        result = run_analysis(manifest, strict=strict, semantic=semantic, prefer_local_contributors=True)
+
+        sym_count = len(result.symbols)
+        edge_count = len(result.call_edges)
+        contrib_count = len(result.contributors)
         click.echo(
-            f"[code-compass] Dead code candidates: {len(result.dead_code)} symbol(s)."
+            f"[code-compass] Found {sym_count} symbol(s), "
+            f"{edge_count} call edge(s), "
+            f"{contrib_count} contributor(s)."
         )
-    if semantic and result.semantic_findings:
-        click.echo(
-            f"[code-compass] Semantic findings: {len(result.semantic_findings)} issue(s) identified."
-        )
+        if result.parse_errors:
+            click.echo(
+                f"[code-compass] {len(result.parse_errors)} file(s) skipped due to parse errors.",
+                err=True,
+            )
+        if strict and result.dead_code:
+            click.echo(
+                f"[code-compass] Dead code candidates: {len(result.dead_code)} symbol(s)."
+            )
+        if semantic and result.semantic_findings:
+            click.echo(
+                f"[code-compass] Semantic findings: {len(result.semantic_findings)} issue(s) identified."
+            )
 
     slug = detect_github_slug(repo)
     if slug:
@@ -92,12 +106,8 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     # attempts (e.g. --output ../../../../etc/passwd or --output /etc/cron.d/evil).
     # Catch it here so the user sees a clean error instead of a raw traceback.
     try:
-        from git import Repo
-        try:
-            repo_ref = Repo(repo, search_parent_directories=False).head.commit.hexsha
-        except Exception:
-            repo_ref = ""
         written = render(result, out, repo_name=repo.name, github_slug=slug, github_ref=repo_ref)
+        save_cache(hash_str, result, ttl_days=30, repo_name=repo.name, github_slug=slug or "")
     except ValueError as exc:
         click.echo(f"[code-compass] ERROR: {exc}", err=True)
         sys.exit(1)
