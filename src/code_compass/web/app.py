@@ -175,10 +175,13 @@ LANDING_HTML = """<!DOCTYPE html>
       color: #fff;
     }
     .brand svg {
-      width: 28px;
-      height: 28px;
-      color: var(--accent-cyan);
-      filter: drop-shadow(0 0 8px var(--glow-cyan));
+      width: 34px;
+      height: 34px;
+      padding: 5px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #0ea5e9, #3b82d4);
+      color: #fff;
+      box-shadow: 0 0 12px var(--glow-cyan), 0 2px 8px rgba(0,0,0,.4);
     }
     .nav-links {
       display: flex;
@@ -370,6 +373,7 @@ LANDING_HTML = """<!DOCTYPE html>
       display: flex;
       align-items: center;
       gap: 0.85rem;
+      min-width: 0;
     }
     .spinner {
       width: 22px;
@@ -390,6 +394,13 @@ LANDING_HTML = """<!DOCTYPE html>
     .status-sub {
       font-size: 0.75rem;
       color: var(--text-muted);
+      min-height: 1.3em;
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+    .status-sub.changing { opacity: 0; transform: translateY(-5px); }
+    @media (prefers-reduced-motion: reduce) {
+      .status-sub { transition: none; }
+      .status-sub.changing { transform: none; }
     }
     .progress-bar-wrap {
       width: 140px;
@@ -556,9 +567,11 @@ LANDING_HTML = """<!DOCTYPE html>
   <!-- Top Bar -->
   <nav>
     <div class="brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"></circle>
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+      <svg viewBox="0 0 40 40" fill="none" role="img" aria-label="Code Compass logo">
+        <circle cx="20" cy="20" r="15" stroke="currentColor" stroke-opacity=".75" stroke-width="2"/>
+        <path d="M20 2v6M20 32v6M2 20h6M32 20h6" stroke="currentColor" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+        <path d="m25.8 14.2-3.7 7.9-7.9 3.7 3.7-7.9 7.9-3.7Z" fill="currentColor"/>
+        <circle cx="20" cy="20" r="2.2" fill="#070b14"/>
       </svg>
       CODE COMPASS
     </div>
@@ -861,6 +874,7 @@ LANDING_HTML = """<!DOCTYPE html>
         githubToken = null;
         if (!res.ok) throw new Error(data.detail || 'Analysis failed');
 
+        stopStatusRotation();
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
@@ -894,6 +908,7 @@ LANDING_HTML = """<!DOCTYPE html>
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Zip analysis failed');
 
+        stopStatusRotation();
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
@@ -907,9 +922,38 @@ LANDING_HTML = """<!DOCTYPE html>
       }
     }
 
+    const analysisPhrases = [
+      'Tracing the paths through your code...',
+      'Connecting modules into a clearer picture...',
+      'Following function calls across files...',
+      'Finding the landmarks in your architecture...',
+      'Turning source files into a map you can explore...'
+    ];
+    let statusRotationInterval = null;
+    let statusTransitionTimeout = null;
+
+    function stopStatusRotation() {
+      clearInterval(statusRotationInterval);
+      clearTimeout(statusTransitionTimeout);
+      statusRotationInterval = null;
+      statusTransitionTimeout = null;
+      document.getElementById('statusSub').classList.remove('changing');
+    }
+
     function setAnalyzingState(title, sub) {
+      stopStatusRotation();
       document.getElementById('statusTitle').textContent = title;
       document.getElementById('statusSub').textContent = sub;
+      let phraseIndex = 0;
+      statusRotationInterval = setInterval(() => {
+        const statusSub = document.getElementById('statusSub');
+        statusSub.classList.add('changing');
+        statusTransitionTimeout = setTimeout(() => {
+          statusSub.textContent = analysisPhrases[phraseIndex % analysisPhrases.length];
+          phraseIndex += 1;
+          statusSub.classList.remove('changing');
+        }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 280);
+      }, 2500);
       document.getElementById('progressBar').style.width = '';
       document.getElementById('progressBar').classList.add('running');
       document.getElementById('analyzeBtn').disabled = true;
@@ -917,6 +961,7 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     function resetState() {
+      stopStatusRotation();
       document.getElementById('statusTitle').textContent = 'READY FOR INGESTION';
       document.getElementById('statusSub').textContent = 'Enter repository URL or upload ZIP';
       document.getElementById('progressBar').classList.remove('running');
