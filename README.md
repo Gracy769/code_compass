@@ -1,5 +1,7 @@
 # Code Compass
 
+**An autonomous codebase architecture engine that ingests, parses, and visualizes complex codebases into interactive cyberpunk-themed dashboards.**
+
 Analyse a local Git repository and generate an interactive HTML dashboard, or use the browser interface to analyse a GitHub repository or a ZIP upload.
 
 ## Install and run
