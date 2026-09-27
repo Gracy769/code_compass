@@ -446,14 +446,41 @@ LANDING_HTML = """<!DOCTYPE html>
       font-size: 0.75rem;
       color: var(--text-muted);
       min-height: 1.3em;
-      transition: opacity 0.28s ease, transform 0.28s ease;
     }
-    .status-sub.changing { opacity: 0; transform: translateY(-5px); }
+    .status-copy { min-width: 0; }
+    .status-word-window {
+      display: none;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.38rem;
+      color: #8eb3c7;
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .status-card.is-analyzing .status-word-window { display: flex; }
+    .status-word-clip {
+      display: inline-block;
+      height: 1.45em;
+      overflow: hidden;
+      color: #67e8f9;
+      -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+      mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+    }
+    .status-word-track { display: block; animation: status-words 10s ease-in-out infinite; }
+    .status-word-track span { display: block; height: 1.45em; white-space: nowrap; }
+    @keyframes status-words {
+      0%, 14% { transform: translateY(0); }
+      20%, 34% { transform: translateY(-1.45em); }
+      40%, 54% { transform: translateY(-2.9em); }
+      60%, 74% { transform: translateY(-4.35em); }
+      80%, 94% { transform: translateY(-5.8em); }
+      100% { transform: translateY(-7.25em); }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .status-sub { transition: none; }
-      .status-sub.changing { transform: none; }
       .loading-dots span::after, .progress-bar-fill.running { animation: none; }
       .loading-dots span::after { opacity: 0.75; transform: none; }
+      .status-word-track { animation: none; }
     }
     .progress-bar-wrap {
       width: 140px;
@@ -710,9 +737,16 @@ LANDING_HTML = """<!DOCTYPE html>
             <div class="loading-dots" aria-hidden="true"><span style="--dot-index:0"></span><span style="--dot-index:1"></span><span style="--dot-index:2"></span><span style="--dot-index:3"></span><span style="--dot-index:4"></span><span style="--dot-index:5"></span><span style="--dot-index:6"></span><span style="--dot-index:7"></span></div>
             <svg class="complete-mark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg>
           </div>
-          <div>
+          <div class="status-copy">
             <div class="status-title" id="statusTitle">READY FOR INGESTION</div>
             <div class="status-sub" id="statusSub">Enter repository URL or upload ZIP</div>
+            <div class="status-word-window" aria-hidden="true">
+              <span>Mapping</span>
+              <span class="status-word-clip"><span class="status-word-track">
+                <span>modules</span><span>symbols</span><span>call paths</span>
+                <span>layers</span><span>landmarks</span><span>modules</span>
+              </span></span>
+            </div>
           </div>
         </div>
         <div class="progress-bar-wrap">
@@ -930,7 +964,7 @@ LANDING_HTML = """<!DOCTYPE html>
         githubToken = null;
         if (!res.ok) throw new Error(data.detail || 'Analysis failed');
 
-        stopStatusRotation();
+        stopStatusAnimation();
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
@@ -965,7 +999,7 @@ LANDING_HTML = """<!DOCTYPE html>
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Zip analysis failed');
 
-        stopStatusRotation();
+        stopStatusAnimation();
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
@@ -980,46 +1014,23 @@ LANDING_HTML = """<!DOCTYPE html>
       }
     }
 
-    const analysisPhrases = [
-      'Tracing the paths through your code...',
-      'Connecting modules into a clearer picture...',
-      'Following function calls across files...',
-      'Finding the landmarks in your architecture...',
-      'Turning source files into a map you can explore...'
-    ];
-    let statusRotationInterval = null;
-    let statusTransitionTimeout = null;
-
-    function stopStatusRotation() {
-      clearInterval(statusRotationInterval);
-      clearTimeout(statusTransitionTimeout);
-      statusRotationInterval = null;
-      statusTransitionTimeout = null;
-      document.getElementById('statusSub').classList.remove('changing');
+    function stopStatusAnimation() {
+      document.getElementById('statusSpinner').closest('.status-card').classList.remove('is-analyzing');
     }
 
     function setStatusIndicator(state) {
       const indicator = document.getElementById('statusSpinner');
       indicator.classList.toggle('is-loading', state === 'loading');
       indicator.classList.toggle('is-complete', state === 'complete');
+      indicator.closest('.status-card').classList.toggle('is-analyzing', state === 'loading');
       indicator.setAttribute('aria-label', state === 'complete' ? 'Analysis complete' : state === 'loading' ? 'Analysis in progress' : 'Ready for analysis');
     }
 
     function setAnalyzingState(title, sub) {
-      stopStatusRotation();
+      stopStatusAnimation();
       setStatusIndicator('loading');
       document.getElementById('statusTitle').textContent = title;
       document.getElementById('statusSub').textContent = sub;
-      let phraseIndex = 0;
-      statusRotationInterval = setInterval(() => {
-        const statusSub = document.getElementById('statusSub');
-        statusSub.classList.add('changing');
-        statusTransitionTimeout = setTimeout(() => {
-          statusSub.textContent = analysisPhrases[phraseIndex % analysisPhrases.length];
-          phraseIndex += 1;
-          statusSub.classList.remove('changing');
-        }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 280);
-      }, 2500);
       document.getElementById('progressBar').style.width = '';
       document.getElementById('progressBar').classList.add('running');
       document.getElementById('analyzeBtn').disabled = true;
@@ -1027,7 +1038,7 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     function resetState() {
-      stopStatusRotation();
+      stopStatusAnimation();
       setStatusIndicator('ready');
       document.getElementById('statusTitle').textContent = 'READY FOR INGESTION';
       document.getElementById('statusSub').textContent = 'Enter repository URL or upload ZIP';

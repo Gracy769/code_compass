@@ -79,6 +79,18 @@ def test_data_json_embedded(tmp_repo: Path) -> None:
     )
 
 
+def test_mind_map_is_embedded_in_standalone_dashboard(tmp_repo: Path) -> None:
+    """The interactive map must work in exported dashboards without a CDN."""
+    output = tmp_repo / "dashboard_mindmap.html"
+    render(_empty_result(), output, repo_name="test-repo")
+    html = output.read_text(encoding="utf-8")
+
+    assert "function initMindMap()" in html
+    assert "function focusBranch(node)" in html
+    assert 'include "mindmap.js.j2"' not in html
+    assert "mermaid.min.js" not in html
+
+
 # ---------------------------------------------------------------------------
 # test_xss_author_name  (ST-9)
 # ---------------------------------------------------------------------------

@@ -1,0 +1,322 @@
+  // Repository mind map. Uses the indexed file and symbol records rather than
+  // interpreting dependency edges as a hierarchy.
+  var _mindmapStarted = false;
+  var focusDiagram = function() {};
+  function initMindMap() {
+    if (_mindmapStarted) return;
+    _mindmapStarted = true;
+
+    var canvas = document.getElementById('main-mermaid-canvas');
+    var wrapper = document.getElementById('main-mermaid-wrapper');
+    var preview = document.getElementById('overview-mermaid-svg');
+    var ns = 'http://www.w3.org/2000/svg';
+    var names = {api:'API', core:'Core', data:'Data', models:'Models',
+      services:'Services', service:'Services', utils:'Utilities', tests:'Tests',
+      ui:'User Interface', cli:'Command Line', middleware:'Middleware',
+      frontend:'Frontend', backend:'Backend', config:'Configuration'};
+    var nodeIndex = new Map();
+    var layerIndex = new Map();
+    var fileIndex = new Map();
+    var uid = 0;
+    var scale = 1, panX = 0, panY = 0, diagramWidth = 400, diagramHeight = 180;
+    var currentEntries = [];
+
+    function makeNode(type, label, meta, parent, detail) {
+      var node = {id:'map-' + (++uid), type:type, label:label, meta:meta || '',
+        detail:detail || label, parent:parent || null, children:[], expanded:false,
+        visibleLimit:type === 'layer' ? 6 : type === 'file' ? 6 : Infinity};
+      nodeIndex.set(node.id, node);
+      if (parent) parent.children.push(node);
+      return node;
+    }
+    function byRank(a, b) {
+      return (Number(b.rank_score) || 0) - (Number(a.rank_score) || 0) ||
+        String(a.path || a.name).localeCompare(String(b.path || b.name));
+    }
+    function normalized(path) { return String(path || '').replace(/\\/g, '/'); }
+    var root = makeNode('root', window.__REPO_NAME__ || 'Repository',
+      files.length.toLocaleString() + ' indexed files', null);
+    files.slice().sort(byRank).forEach(function(file) {
+      var layerKey = String(file.layer || 'core');
+      var layer = layerIndex.get(layerKey);
+      if (!layer) {
+        layer = makeNode('layer', names[layerKey] ||
+          layerKey.replace(/[_-]/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }),
+          '', root);
+        layerIndex.set(layerKey, layer);
+      }
+      var path = normalized(file.path);
+      var basename = path.split('/').pop() || path;
+      var symbolCount = Number(file.symbols_count) || 0;
+      var fileNode = makeNode('file', basename,
+        String(file.language || 'Source') + ' · ' + symbolCount +
+          (symbolCount === 1 ? ' symbol' : ' symbols'),
+        layer, path);
+      fileNode.rankScore = Number(file.rank_score) || 0;
+      fileIndex.set(path, fileNode);
+    });
+    root.children.sort(function(a, b) {
+      return b.children.length - a.children.length || a.label.localeCompare(b.label);
+    });
+    root.children.forEach(function(layer) {
+      layer.children.sort(function(a, b) {
+        return b.rankScore - a.rankScore || a.detail.localeCompare(b.detail);
+      });
+      layer.meta = layer.children.length.toLocaleString() +
+        (layer.children.length === 1 ? ' file' : ' files');
+    });
+    symbols.slice().sort(byRank).forEach(function(symbol) {
+      var owner = fileIndex.get(normalized(symbol.file));
+      if (!owner) return;
+      makeNode('symbol', String(symbol.name || 'Unnamed symbol'),
+        String(symbol.kind || 'symbol').replace(/_/g, ' ') + ' · line ' + (symbol.line || '?'),
+        owner, String(symbol.name || '') + ' in ' + owner.detail);
+    });
+    var previewRoot = {id:root.id, type:root.type, label:root.label, meta:root.meta,
+      detail:root.detail, children:root.children.map(function(layer) {
+        return {id:layer.id, type:layer.type, label:layer.label, meta:layer.meta,
+          detail:layer.detail, children:[], expanded:false, parent:null};
+      }), expanded:true, visibleLimit:Infinity, parent:null};
+    previewRoot.children.forEach(function(layer) { layer.parent = previewRoot; });
+
+    function visibleChildren(node) {
+      if (!node.expanded) return [];
+      var list = node.children.slice(0, node.visibleLimit);
+      if (node.children.length > node.visibleLimit) {
+        list.push({id:node.id + '-more', type:'more',
+          label:'Show more (' + (node.children.length - node.visibleLimit) + ')',
+          meta:'', detail:'Reveal more ' + (node.type === 'layer' ? 'files' : 'symbols'),
+          children:[], expanded:false, parent:node});
+      }
+      return list;
+    }
+    function layoutTree(tree) {
+      var entries = [], leaf = 0;
+      function visit(node, depth) {
+        var entry = {node:node, x:44 + depth * 350, y:0, depth:depth,
+          width:node.type === 'root' ? 286 : 268, height:60};
+        entries.push(entry);
+        var children = visibleChildren(node);
+        if (children.length) {
+          children.forEach(function(child) { visit(child, depth + 1); });
+          var first = entries.find(function(e) { return e.node === children[0]; });
+          var last = entries.find(function(e) { return e.node === children[children.length - 1]; });
+          entry.y = (first.y + last.y) / 2;
+        } else {
+          entry.y = 52 + leaf++ * 84;
+        }
+      }
+      visit(tree, 0);
+      return {entries:entries,
+        width:Math.max.apply(null, entries.map(function(e) { return e.x + e.width + 45; })),
+        height:Math.max(180, leaf * 84 + 70)};
+    }
+    function svgEl(tag, attrs) {
+      var el = document.createElementNS(ns, tag);
+      Object.keys(attrs || {}).forEach(function(key) { el.setAttribute(key, String(attrs[key])); });
+      return el;
+    }
+    function addText(parent, text, x, y, className) {
+      var el = svgEl('text', {x:x, y:y, class:className || ''});
+      el.textContent = text;
+      parent.appendChild(el);
+    }
+    function shortLabel(value, max) {
+      return value.length > max ? value.slice(0, max - 1) + '…' : value;
+    }
+    function draw(tree, target, interactive) {
+      var layout = layoutTree(tree);
+      var svg = svgEl('svg', {xmlns:ns, width:layout.width, height:layout.height,
+        viewBox:'0 0 ' + layout.width + ' ' + layout.height,
+        'aria-label':'Repository structure mind map'});
+      var positions = new Map(layout.entries.map(function(e) { return [e.node, e]; }));
+      layout.entries.forEach(function(entry) {
+        var parent = positions.get(entry.node.parent);
+        if (!parent) return;
+        var x1 = parent.x + parent.width + 22, x2 = entry.x;
+        var y1 = parent.y + parent.height / 2, y2 = entry.y + entry.height / 2;
+        var mid = (x1 + x2) / 2;
+        svg.appendChild(svgEl('path', {class:'mindmap-edge',
+          d:'M ' + x1 + ' ' + y1 + ' C ' + mid + ' ' + y1 + ', ' + mid + ' ' + y2 + ', ' + x2 + ' ' + y2}));
+      });
+      layout.entries.forEach(function(entry) {
+        var node = entry.node, group = svgEl('g', {class:'mindmap-node ' + node.type});
+        var rect = svgEl('rect', {x:entry.x, y:entry.y, width:entry.width,
+          height:entry.height, rx:11});
+        group.appendChild(rect);
+        addText(group, shortLabel(node.label, node.type === 'root' ? 30 : 28),
+          entry.x + 16, entry.y + 25);
+        if (node.meta) addText(group, shortLabel(node.meta, 39),
+          entry.x + 16, entry.y + 45, 'node-meta');
+        var title = svgEl('title');
+        title.textContent = node.detail;
+        group.appendChild(title);
+        svg.appendChild(group);
+        if (!interactive || (!node.children.length && node.type !== 'more')) return;
+        var cx = entry.x + entry.width + 20, cy = entry.y + entry.height / 2;
+        var arrow = svgEl('g', {class:'mindmap-arrow', role:'button', tabindex:'0',
+          'data-map-id':node.id,
+          'aria-label':node.type === 'more' ? node.detail :
+            (node.expanded ? 'Collapse ' : 'Expand ') + node.label,
+          'aria-expanded':node.type === 'more' ? 'false' : String(node.expanded)});
+        arrow.appendChild(svgEl('circle', {cx:cx, cy:cy, r:13}));
+        addText(arrow, node.expanded ? '‹' : '›', cx - 5, cy + 5);
+        svg.appendChild(arrow);
+      });
+      target.replaceChildren(svg);
+      return layout;
+    }
+    function applyView() {
+      canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+    }
+    function fitBounds(bounds, maxScale) {
+      if (!wrapper.clientWidth || !wrapper.clientHeight) return;
+      var padding = 76;
+      var next = Math.min(maxScale, (wrapper.clientWidth - padding) / bounds.width,
+        (wrapper.clientHeight - padding) / bounds.height);
+      scale = Math.max(.12, next);
+      panX = wrapper.clientWidth / 2 - (bounds.x + bounds.width / 2) * scale;
+      panY = wrapper.clientHeight / 2 - (bounds.y + bounds.height / 2) * scale;
+      applyView();
+    }
+    function fitAll() {
+      fitBounds({x:0, y:0, width:diagramWidth, height:diagramHeight}, 1.25);
+    }
+    function withinBranch(node, ancestor) {
+      for (var current = node; current; current = current.parent) {
+        if (current === ancestor) return true;
+      }
+      return false;
+    }
+    function focusBranch(node) {
+      var branch = currentEntries.filter(function(e) { return withinBranch(e.node, node); });
+      if (!branch.length) { fitAll(); return; }
+      var minX = Math.min.apply(null, branch.map(function(e) { return e.x; }));
+      var minY = Math.min.apply(null, branch.map(function(e) { return e.y; }));
+      var maxX = Math.max.apply(null, branch.map(function(e) { return e.x + e.width + 35; }));
+      var maxY = Math.max.apply(null, branch.map(function(e) { return e.y + e.height; }));
+      fitBounds({x:minX, y:minY, width:maxX-minX, height:maxY-minY}, 1.3);
+    }
+    function render() {
+      var layout = draw(root, canvas, true);
+      currentEntries = layout.entries;
+      diagramWidth = layout.width;
+      diagramHeight = layout.height;
+      canvas.style.width = diagramWidth + 'px';
+      canvas.style.height = diagramHeight + 'px';
+    }
+    draw(previewRoot, preview, false);
+    var previewSvg = preview.querySelector('svg');
+    if (previewSvg) {
+      previewSvg.style.width = 'min(100%, 850px)';
+      previewSvg.style.height = 'auto';
+      previewSvg.style.maxHeight = '340px';
+    }
+    if (!files.length) {
+      canvas.classList.add('mindmap-empty');
+      canvas.textContent = 'No indexed files are available for this repository.';
+      preview.textContent = 'No indexed files are available for a mind map.';
+    } else {
+      render();
+      requestAnimationFrame(fitAll);
+    }
+    focusDiagram = fitAll;
+    function activate(id, fromKeyboard) {
+      var node = nodeIndex.get(id);
+      if (!node && id.endsWith('-more')) {
+        node = nodeIndex.get(id.slice(0, -5));
+        if (!node) return;
+        node.visibleLimit += 6;
+        render();
+        if (fromKeyboard) {
+          var moreArrow = canvas.querySelector('[data-map-id="' + id + '"]');
+          if (moreArrow) moreArrow.focus();
+        }
+        requestAnimationFrame(function() { focusBranch(node); });
+        return;
+      }
+      if (!node || !node.children.length) return;
+      node.expanded = !node.expanded;
+      render();
+      if (fromKeyboard) {
+        var replacement = canvas.querySelector('[data-map-id="' + node.id + '"]');
+        if (replacement) replacement.focus();
+      }
+      requestAnimationFrame(function() { focusBranch(node.expanded ? node : node.parent || node); });
+    }
+    canvas.addEventListener('click', function(event) {
+      var arrow = event.target.closest('.mindmap-arrow');
+      if (arrow) activate(arrow.getAttribute('data-map-id'), false);
+    });
+    canvas.addEventListener('keydown', function(event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      var arrow = event.target.closest('.mindmap-arrow');
+      if (!arrow) return;
+      event.preventDefault();
+      activate(arrow.getAttribute('data-map-id'), true);
+    });
+    function zoomAt(factor, x, y) {
+      var next = Math.max(.12, Math.min(4, scale * factor));
+      panX = x - (x - panX) * next / scale;
+      panY = y - (y - panY) * next / scale;
+      scale = next;
+      applyView();
+    }
+    document.getElementById('btn-zoom-in').onclick = function() {
+      zoomAt(1.25, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
+    };
+    document.getElementById('btn-zoom-out').onclick = function() {
+      zoomAt(.8, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
+    };
+    document.getElementById('btn-zoom-reset').onclick = fitAll;
+    wrapper.addEventListener('wheel', function(event) {
+      event.preventDefault();
+      var rect = wrapper.getBoundingClientRect();
+      zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12,
+        event.clientX - rect.left, event.clientY - rect.top);
+    }, {passive:false});
+    var lastX = 0, lastY = 0;
+    wrapper.addEventListener('pointerdown', function(event) {
+      if (event.target.closest('.mindmap-arrow')) return;
+      wrapper.setPointerCapture(event.pointerId);
+      wrapper.classList.add('dragging');
+      canvas.classList.add('is-dragging');
+      lastX = event.clientX; lastY = event.clientY;
+    });
+    wrapper.addEventListener('pointermove', function(event) {
+      if (!wrapper.hasPointerCapture(event.pointerId)) return;
+      panX += event.clientX - lastX; panY += event.clientY - lastY;
+      lastX = event.clientX; lastY = event.clientY;
+      applyView();
+    });
+    function stopDrag(event) {
+      if (wrapper.hasPointerCapture(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+      wrapper.classList.remove('dragging');
+      canvas.classList.remove('is-dragging');
+    }
+    wrapper.addEventListener('pointerup', stopDrag);
+    wrapper.addEventListener('pointercancel', stopDrag);
+    document.getElementById('btn-copy-mermaid').onclick = function() {
+      navigator.clipboard.writeText(mermaidArch || '');
+      showToast('Dependency diagram code copied!');
+    };
+    document.getElementById('btn-download-svg').onclick = function() {
+      var svg = canvas.querySelector('svg');
+      if (!svg) return;
+      var exportSvg = svg.cloneNode(true);
+      var style = svgEl('style');
+      style.textContent = '.mindmap-edge{fill:none;stroke:#829bca;stroke-width:1.8}.mindmap-node rect{stroke:#849db0;stroke-width:1.2}.mindmap-node.root rect{fill:#474c68}.mindmap-node.layer rect{fill:#344758}.mindmap-node.file rect{fill:#294640}.mindmap-node.symbol rect{fill:#263c49}.mindmap-node.more rect{fill:#24303e}.mindmap-node text{fill:#f7fbff;font:500 15px sans-serif}.mindmap-node .node-meta{fill:#b8c9d9;font-size:11px}.mindmap-arrow circle{fill:#445364;stroke:#849db0}.mindmap-arrow text{fill:#fff;font:700 16px sans-serif}';
+      exportSvg.prepend(style);
+      var blob = new Blob([new XMLSerializer().serializeToString(exportSvg)],
+        {type:'image/svg+xml'});
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = (window.__REPO_NAME__ || 'repository').replace(/[^a-z0-9_-]/gi, '-') + '-mindmap.svg';
+      link.click();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    };
+    window.addEventListener('resize', function() {
+      if (document.getElementById('tab-architecture').classList.contains('active')) fitAll();
+    });
+  }
