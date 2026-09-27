@@ -117,16 +117,13 @@ async def _bounded_worker(kind: str, source: str, work_dir: Path, *, strict: boo
         JOB_SLOTS.release()
 
 
-# Embedded responsive Cyberpunk Hero Landing Page
+# Embedded responsive landing page
 LANDING_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Code Compass — Autonomous Codebase Architecture Engine</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070b14;
@@ -641,6 +638,74 @@ LANDING_HTML = """<!DOCTYPE html>
       .status-card { flex-wrap: wrap; }
       footer { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
     }
+    /* Editorial landing treatment; the existing loading and completion states remain intact. */
+    :root {
+      --bg-dark: #171715;
+      --bg-card: #242320;
+      --border-cyan: #514a40;
+      --accent-cyan: #c96f4d;
+      --accent-sky: #e0a07b;
+      --accent-blue: #c96f4d;
+      --glow-cyan: transparent;
+      --text-muted: #bdb3a8;
+    }
+    body {
+      background-color: #171715;
+      background-image: radial-gradient(rgba(242,238,231,.027) .6px,transparent .6px);
+      background-size: 7px 7px;
+      color: #f2eee7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      line-height: 1.55;
+    }
+    nav { background: #1c1b19; border-color: #48443e; backdrop-filter: none; padding: 1rem clamp(1rem, 4vw, 4rem); }
+    .brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.55rem; font-weight: 400; letter-spacing: -.03em; color: #f2eee7; }
+    .brand svg { background: transparent; color: #d98662; box-shadow: none; border: 1px solid #a35e46; border-radius: 50%; padding: 5px; }
+    .nav-links a { color: #c5bdb2; }
+    .nav-links a:hover { color: #e6a17f; }
+    main { max-width: 1540px; gap: clamp(2rem, 5vw, 6rem); padding: clamp(3rem, 7vw, 7rem) clamp(1rem, 4vw, 4rem); }
+    main::before { inset: 1.8rem 0; background: none; border: 0; }
+    .hero-left { gap: 1.45rem; }
+    .tagline { font-family: Consolas, 'SFMono-Regular', monospace; color: #e1a27e; letter-spacing: .15em; font-size: .72rem; }
+    .headline { color: #f2eee7; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(3.25rem, 5.2vw, 5.75rem); font-weight: 400; letter-spacing: -.045em; line-height: 1.03; }
+    .headline span { color: #d98763; text-shadow: none; }
+    .subtext { color: #c8bfb4; max-width: 32rem; font-size: 1.04rem; line-height: 1.72; }
+    .search-input-wrap { background: #242320; border-color: #746052; border-radius: 8px; box-shadow: none; min-height: 58px; }
+    .search-input-wrap:focus-within { border-color: #e9a982; box-shadow: 0 0 0 2px rgba(233,169,130,.22); }
+    .search-input { color: #f2eee7; }
+    .search-input::placeholder { color: #a89e93; }
+    .btn { border-radius: 7px; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+    .btn-primary { background: #c96f4d; color: #171715; box-shadow: none; }
+    .btn-primary:hover { background: #e6a17f; box-shadow: none; transform: translateY(-1px); }
+    .btn-secondary { background: #292722; border: 1px solid #62574d; color: #f2eee7; }
+    .btn-secondary:hover { background: #383028; border-color: #b77355; transform: translateY(-1px); }
+    .presets { color: #bdb3a8; }
+    .chip { background: #282521; border: 1px solid #5b5148; border-radius: 6px; color: #e8d8c9; font-family: Consolas, monospace; }
+    .chip:hover { background: #443128; border-color: #c96f4d; color: #f2eee7; }
+    .hud-card { background: #242320; border-color: #514a40; border-radius: 10px; box-shadow: none; backdrop-filter: none; }
+    .status-indicator { color: #d98662; background: #372b24; border-color: #9d6249; }
+    .status-indicator::before { box-shadow: none; }
+    .loading-dots span::after { background: #e6a17f; }
+    .status-indicator.is-complete { color: #b4c9a6; border-color: #72846e; background: #303b31; }
+    .status-title { color: #f2eee7; font-family: Consolas, monospace; }
+    .status-word-window { color: #c8bfb4; }
+    .status-word-clip { color: #e9ab88; }
+    .progress-bar-fill { background: #d98662; }
+    .canvas-wrap { background: radial-gradient(circle at center,rgba(201,111,77,.065),transparent 70%); }
+    .map-overlay { background: #27231f; border-color: #5b5148; color: #bdb3a8; }
+    .map-overlay-title { color: #f2eee7; font-family: Consolas, monospace; }
+    .dot-cyan { background: #d98662; }
+    .dot-amber { background: #d6b375; }
+    .metric-card { padding: 1.1rem; }
+    .metric-icon { background: #382b23; border-color: #7f5542; color: #e1a27e; }
+    .metric-val { color: #f2eee7; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.35rem; }
+    .modal-backdrop { backdrop-filter: blur(3px); }
+    .modal-box { background: #292621; border-color: #6b594b; border-radius: 10px; }
+    .modal-title { font-family: Georgia, 'Times New Roman', serif; color: #f2eee7; font-weight: 400; font-size: 1.7rem; }
+    .modal-input { background: #1c1b19; color: #f2eee7; border-color: #6b594b; }
+    footer { border-color: #48443e; color: #a99f94; font-family: Consolas, monospace; }
+    :is(button, a, input, [tabindex]):focus-visible { outline: 2px solid #efb695; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) { .btn, .chip { transition: none; } }
+    @media (max-width: 640px) { main { padding: 3rem 1rem; } .headline { font-size: clamp(2.7rem, 10vw, 4rem); } }
   </style>
 </head>
 <body>
@@ -847,12 +912,12 @@ LANDING_HTML = """<!DOCTYPE html>
     resize();
 
     const nodes = [
-      { name: 'core', x: 0.5, y: 0.42, r: 14, color: '#38bdf8', pulse: 0 },
-      { name: 'api', x: 0.32, y: 0.22, r: 10, color: '#00b4d8', pulse: 1 },
-      { name: 'models', x: 0.72, y: 0.26, r: 11, color: '#00b4d8', pulse: 2 },
+      { name: 'core', x: 0.5, y: 0.42, r: 14, color: '#d98763', pulse: 0 },
+      { name: 'api', x: 0.32, y: 0.22, r: 10, color: '#a7b69a', pulse: 1 },
+      { name: 'models', x: 0.72, y: 0.26, r: 11, color: '#a7b69a', pulse: 2 },
       { name: 'services', x: 0.28, y: 0.72, r: 10, color: '#f59e0b', pulse: 3 },
-      { name: 'data', x: 0.65, y: 0.76, r: 10, color: '#00b4d8', pulse: 4 },
-      { name: 'utils', x: 0.82, y: 0.52, r: 9, color: '#00b4d8', pulse: 5 },
+      { name: 'data', x: 0.65, y: 0.76, r: 10, color: '#a7b69a', pulse: 4 },
+      { name: 'utils', x: 0.82, y: 0.52, r: 9, color: '#a7b69a', pulse: 5 },
     ];
 
     const edges = [
@@ -869,7 +934,7 @@ LANDING_HTML = """<!DOCTYPE html>
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       ctx.save();
-      ctx.strokeStyle = 'rgba(0, 180, 216, 0.06)';
+      ctx.strokeStyle = 'rgba(218, 171, 133, 0.06)';
       ctx.lineWidth = 1;
       for (let i = -4; i <= 4; i++) {
         ctx.beginPath();
@@ -891,7 +956,7 @@ LANDING_HTML = """<!DOCTYPE html>
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         ctx.lineTo(bx, by);
-        ctx.strokeStyle = 'rgba(0, 180, 216, 0.25)';
+        ctx.strokeStyle = 'rgba(218, 171, 133, 0.25)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
       });
@@ -905,7 +970,7 @@ LANDING_HTML = """<!DOCTYPE html>
         // Glow ring
         ctx.beginPath();
         ctx.arc(x, y, pulseR + 8, 0, Math.PI * 2);
-        ctx.fillStyle = n.color === '#f59e0b' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(56, 189, 248, 0.12)';
+        ctx.fillStyle = n.color === '#f59e0b' ? 'rgba(214, 179, 117, 0.1)' : 'rgba(217, 135, 99, 0.1)';
         ctx.fill();
 
         // Node circle
@@ -913,13 +978,13 @@ LANDING_HTML = """<!DOCTYPE html>
         ctx.arc(x, y, pulseR, 0, Math.PI * 2);
         ctx.fillStyle = n.color;
         ctx.shadowColor = n.color;
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 7;
         ctx.fill();
         ctx.shadowBlur = 0;
 
         // Label
         ctx.font = '600 11px "JetBrains Mono", monospace';
-        ctx.fillStyle = '#f8fafc';
+      ctx.fillStyle = '#f2eee7';
         ctx.textAlign = 'center';
         ctx.fillText(n.name, x, y - pulseR - 6);
       });
@@ -1133,7 +1198,7 @@ LANDING_HTML = """<!DOCTYPE html>
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request) -> HTMLResponse:
-    """Serve the Cult UI-inspired Cyberpunk Hero Landing Page."""
+    """Serve the Code Compass landing page."""
     response = HTMLResponse(content=LANDING_HTML, status_code=200)
     if not re.fullmatch(r"[A-Za-z0-9_-]{43}", request.cookies.get(SESSION_COOKIE, "")):
         response.set_cookie(
