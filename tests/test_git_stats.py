@@ -44,6 +44,26 @@ def test_missing_github_line_totals_fall_back_to_complete_git_history(tmp_path, 
     assert contributors[0].github_handle == ""
 
 
+def test_local_history_retains_verified_github_avatar(tmp_path, monkeypatch):
+    repo = Repo.init(tmp_path)
+    (tmp_path / "main.py").write_text("first\nsecond\n", encoding="utf-8")
+    repo.index.add(["main.py"])
+    actor = Actor("Saqlain", "146865285+Razee4315@users.noreply.github.com")
+    repo.index.commit("initial", author=actor, committer=actor)
+    repo.create_remote("origin", "https://github.com/example/project.git")
+    monkeypatch.setattr(git_stats, "_fetch_github_api_contributors", lambda owner, name: [
+        ContributorStat(author="Razee4315", commits=1, github_handle="Razee4315",
+                        avatar_url="https://avatars.githubusercontent.com/u/146865285?v=4",
+                        line_stats_available=False),
+    ])
+
+    contributors = git_stats.collect_git_stats(tmp_path)
+    assert len(contributors) == 1
+    assert (contributors[0].commits, contributors[0].lines_added) == (1, 2)
+    assert contributors[0].github_handle == "Razee4315"
+    assert contributors[0].avatar_url.endswith("?v=4")
+
+
 def test_large_blob_filtered_clone_keeps_verified_counts_without_slow_line_scan(tmp_path, monkeypatch):
     repo = Repo.init(tmp_path)
     actor = Actor("Real Author", "author@example.com")
