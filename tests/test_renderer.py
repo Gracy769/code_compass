@@ -37,6 +37,18 @@ def test_output_file_created(tmp_repo: Path) -> None:
     assert output.stat().st_size > 0, "Output HTML file is empty"
 
 
+def test_editorial_theme_is_inlined_in_both_exported_pages(tmp_repo: Path) -> None:
+    """The dashboard and Summary Explorer must retain the approved palette."""
+    output = tmp_repo / "dashboard.html"
+    render(_empty_result(), output, repo_name="test-repo")
+
+    for page in (output, tmp_repo / "dashboard-summary.html"):
+        html = page.read_text(encoding="utf-8")
+        assert "background-color: #171715" in html
+        assert "--accent-cyan: #c96f4d" in html
+        assert "font-family: Georgia, 'Times New Roman', serif" in html
+
+
 # ---------------------------------------------------------------------------
 # test_output_is_self_contained
 # ---------------------------------------------------------------------------
