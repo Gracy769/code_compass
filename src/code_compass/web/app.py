@@ -54,6 +54,12 @@ class GitAnalyzeRequest(BaseModel):
     token: str | None = None
 
 
+class AuditRequest(BaseModel):
+    endpoint: str
+    model: str
+    api_key: str
+
+
 def _session(request: Request) -> str:
     origin = request.headers.get("origin")
     if origin and urlsplit(origin).netloc != request.headers.get("host"):
@@ -74,10 +80,12 @@ def _new_run(request: Request) -> tuple[str, Path]:
     return run_id, work_dir
 
 
-def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "") -> None:
+def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "", endpoint: str = "", model: str = "", api_key: str = "") -> None:
     env = os.environ.copy()
     if token:
         env["CODE_COMPASS_CLONE_TOKEN"] = token
+    if api_key:
+        env["CODE_COMPASS_AUDIT_KEY"] = api_key
     command = [sys.executable, "-m", "code_compass.web.worker", kind, source, str(work_dir)]
     if strict:
         command.append("--strict")
@@ -85,6 +93,10 @@ def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semanti
         command.append("--semantic")
     if name:
         command.extend(("--name", name))
+    if endpoint:
+        command.extend(("--endpoint", endpoint))
+    if model:
+        command.extend(("--model", model))
     try:
         completed = subprocess.run(command, env=env, capture_output=True, text=True, timeout=MAX_CLONE_SECONDS)
     except subprocess.TimeoutExpired as exc:
@@ -93,13 +105,13 @@ def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semanti
         raise RuntimeError("Analysis failed. Check the repository URL or ZIP contents.")
 
 
-async def _bounded_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "") -> None:
+async def _bounded_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "", endpoint: str = "", model: str = "", api_key: str = "") -> None:
     try:
         await asyncio.wait_for(JOB_SLOTS.acquire(), timeout=0.1)
     except asyncio.TimeoutError as exc:
         raise HTTPException(status_code=429, detail="Analysis is busy. Please retry shortly.") from exc
     try:
-        await asyncio.to_thread(_run_worker, kind, source, work_dir, strict=strict, semantic=semantic, token=token, name=name)
+        await asyncio.to_thread(_run_worker, kind, source, work_dir, strict=strict, semantic=semantic, token=token, name=name, endpoint=endpoint, model=model, api_key=api_key)
     finally:
         JOB_SLOTS.release()
 
@@ -994,6 +1006,29 @@ async def analyze_zip_upload(request: Request, file: UploadFile = File(...)) -> 
         "dashboard_url": f"/dashboard/{run_id}",
         "summary_url": f"/summary/{run_id}",
     }
+
+
+@app.post("/api/audit/{analysis_id}")
+async def run_configured_audit(analysis_id: str, config: AuditRequest, request: Request) -> dict[str, str]:
+    """Audit the saved repository using a one-time, user configured provider."""
+    _session(request)
+    if not re.fullmatch(r"run_[a-f0-9]{12}", analysis_id):
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    run_dir = STORAGE_DIR / analysis_id
+    if not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        raise HTTPException(status_code=404, detail="Analysis not found.")
+    if not (run_dir / "analysis.json").is_file():
+        raise HTTPException(status_code=404, detail="Analysis source is unavailable.")
+    if len(config.endpoint) > 500 or len(config.model) > 120 or len(config.api_key) > 1000:
+        raise HTTPException(status_code=400, detail="Audit settings are too long.")
+    try:
+        await _bounded_worker("audit", ".", run_dir, strict=False,
+                              endpoint=config.endpoint, model=config.model, api_key=config.api_key)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Audit failed. Check the HTTPS endpoint, model, API key, and provider response.") from exc
+    return {"dashboard_url": f"/dashboard/{analysis_id}"}
 
 
 @app.on_event("startup")

@@ -10,18 +10,19 @@ from code_compass.analysis.git_stats import collect_git_stats
 from code_compass.analysis.js_analyzer import analyze_js
 from code_compass.analysis.models import AnalysisResult, FileMetadata
 from code_compass.analysis.python_analyzer import analyze_python
+from code_compass.analysis.prompt import generate_ai_system_prompt, read_project_description
 from code_compass.analysis.semantic_auditor import run_semantic_audit
 from code_compass.analysis.tagger import (
     classify_layer,
     compute_file_rankings,
     extract_tags,
-    generate_ai_system_prompt,
     generate_mermaid_architecture,
 )
 from code_compass.discovery import RepoManifest
 
 
-def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True) -> AnalysisResult:
+def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True,
+            prefer_local_contributors: bool = False) -> AnalysisResult:
     """Analyse all files in *manifest* and return an :class:`AnalysisResult`."""
     result = AnalysisResult()
     file_sym_map: dict[str, list[str]] = defaultdict(list)
@@ -78,7 +79,7 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
     if strict:
         result.dead_code = find_dead_code(result)
 
-    result.contributors = collect_git_stats(manifest.root)
+    result.contributors = collect_git_stats(manifest.root, prefer_local=prefer_local_contributors)
 
     # Compile raw file list for ranking
     raw_files = []
@@ -139,16 +140,6 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
     if semantic:
         result.semantic_findings = run_semantic_audit(result, manifest.root)
 
-    # Generate exhaustive AI System Prompt for overview / AI synthesis
-    result.ai_system_prompt = generate_ai_system_prompt(
-        repo_name=repo_name,
-        total_files=len(result.files),
-        symbols=[{"name": s.name, "file": s.file} for s in result.symbols],
-        ranked_files=ranked,
-        contributors=[{"author": c.author, "commits": c.commits} for c in result.contributors],
-        semantic_findings=[{"severity": f.severity, "category": f.category, "summary": f.summary, "file": f.file} for f in result.semantic_findings],
-    )
-
     # Health score metrics — dynamic formula based on complexity distribution
     total_syms = len(result.symbols) or 1
     dead_ratio = round((len(result.dead_code) / total_syms) * 100, 1)
@@ -162,10 +153,20 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
         "total_symbols": len(result.symbols),
         "total_edges": len(result.call_edges),
         "total_contributors": len(result.contributors),
+        "contributor_history": (
+            "GitHub API" if result.contributors and result.contributors[0].github_handle
+            else "full git history" if result.contributors else "unavailable"
+        ),
         "dead_code_count": len(result.dead_code),
         "dead_code_ratio": dead_ratio,
         "average_complexity": round(avg_cx, 2),
         "semantic_status": "unavailable" if semantic else "disabled",
     }
+    description = read_project_description(manifest.root)
+    if description:
+        result.repo_stats["project_description"] = description
+    result.ai_system_prompt = generate_ai_system_prompt(
+        result, repo_name, project_description=description,
+    )
 
     return result

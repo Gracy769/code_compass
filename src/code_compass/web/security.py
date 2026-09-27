@@ -59,6 +59,8 @@ def extract_zip_safely(archive: Path, destination: Path) -> None:
             path = PurePosixPath(name)
             if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} or ":" in part for part in path.parts):
                 raise ValueError("ZIP contains an unsafe path.")
+            if (path.name == ".git" and not member.is_dir()) or path.parts[-4:] == (".git", "objects", "info", "alternates"):
+                raise ValueError("ZIP contains unsupported Git metadata.")
             target = destination.joinpath(*path.parts).resolve()
             try:
                 target.relative_to(destination)
@@ -75,6 +77,10 @@ def extract_zip_safely(archive: Path, destination: Path) -> None:
             total += member.file_size
             if count > MAX_ZIP_FILES or member.file_size > MAX_ZIP_MEMBER_BYTES or total > MAX_EXTRACTED_BYTES:
                 raise ValueError("ZIP exceeds the analysis size limit.")
+            if path.parts[-2:] == (".git", "config"):
+                config = zf.read(member)
+                if re.search(rb"(?im)^\s*\[\s*include(?:if)?\b", config):
+                    raise ValueError("ZIP contains unsupported Git configuration.")
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(member) as source, target.open("wb") as output:
                 copied = 0
