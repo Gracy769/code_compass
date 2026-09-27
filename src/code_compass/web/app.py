@@ -659,7 +659,6 @@ LANDING_HTML = """<!DOCTYPE html>
     <div class="nav-links">
       <a href="https://github.com/Gracy769/code-compass-app" target="_blank">Docs</a>
       <a href="https://github.com/Gracy769/code-compass-app" target="_blank">GitHub</a>
-      <button id="githubSignInBtn" onclick="signInWithGitHub()" style="display:none;background:transparent;border:1px solid rgba(0,180,216,0.4);color:#38bdf8;padding:0.4rem 1rem;border-radius:6px;font-size:0.85rem;cursor:pointer;">Sign in with GitHub</button>
     </div>
   </nav>
 
@@ -702,11 +701,11 @@ LANDING_HTML = """<!DOCTYPE html>
             Upload .ZIP
           </button>
 
-          <button id="authGithubBtn" class="btn btn-secondary" onclick="openTokenModal()">
+          <button id="authGithubBtn" class="btn btn-secondary" onclick="handleGitHubAuth()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-            Use GitHub Token
+            <span id="authGithubBtnText">Sign in with GitHub</span>
           </button>
 
           <a href="/dashboard/demo" class="btn btn-secondary" style="border-color: rgba(0, 180, 216, 0.4); color: var(--accent-sky);">
@@ -820,8 +819,8 @@ LANDING_HTML = """<!DOCTYPE html>
   <!-- GitHub Token Modal -->
   <div class="modal-backdrop" id="tokenModal">
     <div class="modal-box">
-      <div class="modal-title">Use a GitHub token</div>
-      <div class="modal-sub">For a private repository, enter a token with access to that repository. It is sent to this server for this analysis and is not saved in your browser.</div>
+      <div class="modal-title">Connect GitHub Account</div>
+      <div class="modal-sub">Authenticate via token for private repository indexing &amp; higher API limits.</div>
       <input type="password" id="ghTokenInput" class="modal-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeTokenModal()">Cancel</button>
@@ -1059,16 +1058,17 @@ LANDING_HTML = """<!DOCTYPE html>
       document.getElementById('analyzeBtn').style.opacity = '1';
     }
 
-    // Supabase OAuth & Repo Picker
-    async function signInWithGitHub() {
-      const cfg = await fetch('/api/supabase-config').then(r => r.json()).catch(() => null);
-      if (!cfg || !cfg.enabled) { openTokenModal(); return; }
-      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-      const sb = createClient(cfg.supabase_url, cfg.anon_key);
-      await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin + '/auth/callback' } });
+    // GitHub Auth & Repo Picker
+    function _hasGitHubCredential() {
+      return !!(localStorage.getItem('gh_token') || localStorage.getItem('sb_access_token'));
     }
 
-    async function fetchUserRepos() {
+    function updateGhButton() {
+      const btn = document.getElementById('authGithubBtnText');
+      if (btn) btn.textContent = _hasGitHubCredential() ? 'Upload from GitHub' : 'Sign in with GitHub';
+    }
+
+    async function openRepoPicker() {
       const data = await fetch('/api/repos').then(r => r.json()).catch(() => ({ repos: [], authenticated: false }));
       if (!data.authenticated || !data.repos.length) { openTokenModal(); return; }
       const list = document.getElementById('repoPickerList');
@@ -1084,12 +1084,22 @@ LANDING_HTML = """<!DOCTYPE html>
       document.getElementById('repoPickerModal').style.display = 'flex';
     }
 
-    (async () => {
+    async function handleGitHubAuth() {
+      if (_hasGitHubCredential()) { openRepoPicker(); return; }
       try {
-        const cfg = await fetch('/api/supabase-config').then(r => r.json());
-        if (cfg && cfg.enabled) document.getElementById('githubSignInBtn').style.display = '';
-      } catch (_) {}
-    })();
+        const cfg = await fetch('/api/supabase-config').then(r => r.json()).catch(() => null);
+        if (!cfg || !cfg.enabled) { openTokenModal(); return; }
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        const sb = createClient(cfg.supabase_url, cfg.anon_key);
+        const { error } = await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin + '/auth/callback' } });
+        if (error) { openTokenModal(); }
+      } catch (_) {
+        openTokenModal();
+      }
+    }
+
+    // On load: sync button label with stored credential state
+    updateGhButton();
   </script>
 </body>
 </html>
