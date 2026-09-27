@@ -492,11 +492,12 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function badge(cls, text) { return `<span class="badge ${cls}">${escHtml(text)}</span>`; }
-function githubLink(path, line) {
-  if (!GITHUB_SLUG || !GITHUB_REF) return `<span title="${escHtml(path)}">${escHtml(path)}</span>`;
+function githubLink(path, line, label) {
+  const text = escHtml(label || path);
+  if (!path || !GITHUB_SLUG || !GITHUB_REF) return `<span title="${escHtml(path)}">${text}</span>`;
   const safePath = String(path).replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/');
   const url = `https://github.com/${encodeURI(GITHUB_SLUG)}/blob/${encodeURIComponent(GITHUB_REF)}/${safePath}${line ? '#L' + Number(line) : ''}`;
-  return `<a href="${url}" target="_blank" rel="noopener" title="${escHtml(path)}">${escHtml(path)}</a>`;
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer" title="Open ${escHtml(path)} on GitHub">${text}</a>`;
 }
 function tagPills(tags, max, onClick) {
   if (!tags || !tags.length) return '';
@@ -850,7 +851,7 @@ function symRow(s) {
   const cxHtml = `<span class="${cxClass(cx)}">${cx}</span>`;
   const tags = (s.tags || []).slice(0,3).map(t => `<span class="tag-pill" style="pointer-events:none;">${escHtml(t)}</span>`).join(' ');
   return `<tr>
-    <td style="font-weight:600;color:#ffffff;">${escHtml(s.name)}</td>
+    <td style="font-weight:600;">${githubLink(s.file || '', s.line, s.name)}</td>
     <td>${kbadge}</td>
     <td>${lbadge}</td>
     <td class="path-cell" title="${escHtml(s.file||'')}">${githubLink(s.file || '', s.line)}</td>
