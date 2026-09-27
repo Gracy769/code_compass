@@ -208,7 +208,20 @@ LANDING_HTML = """<!DOCTYPE html>
       grid-template-columns: 1.15fr 1fr;
       gap: 3.5rem;
       align-items: center;
+      position: relative;
     }
+    main::before {
+      content: '';
+      position: absolute;
+      inset: 1.5rem 0;
+      border: 1px solid rgba(125, 211, 252, 0.09);
+      border-radius: 28px;
+      background: radial-gradient(circle at 78% 18%, rgba(56,189,248,0.10), transparent 38%),
+        repeating-linear-gradient(90deg, transparent 0 39px, rgba(148,163,184,0.025) 40px),
+        repeating-linear-gradient(0deg, transparent 0 39px, rgba(148,163,184,0.025) 40px);
+      pointer-events: none;
+    }
+    main > * { position: relative; }
 
     /* Left Hero Column */
     .hero-left {
@@ -352,7 +365,8 @@ LANDING_HTML = """<!DOCTYPE html>
       position: relative;
     }
     .hud-card {
-      background: var(--bg-card);
+      background: radial-gradient(circle at 100% 0%, rgba(56,189,248,0.075), transparent 48%),
+        linear-gradient(155deg, rgba(20,34,52,0.92), rgba(8,15,27,0.92));
       border: 1px solid var(--border-cyan);
       border-radius: 16px;
       backdrop-filter: blur(16px);
@@ -375,15 +389,52 @@ LANDING_HTML = """<!DOCTYPE html>
       gap: 0.85rem;
       min-width: 0;
     }
-    .spinner {
-      width: 22px;
-      height: 22px;
-      border: 2.5px solid rgba(0, 180, 216, 0.2);
-      border-top-color: var(--accent-cyan);
+    .status-indicator {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(56,189,248,0.24);
       border-radius: 50%;
-      animation: spin 1s linear infinite;
+      background: rgba(14,165,233,0.08);
+      color: #67e8f9;
+      position: relative;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-indicator::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 11px rgba(103,232,249,0.5);
+    }
+    .status-indicator .loading-dots, .status-indicator .complete-mark { display: none; }
+    .status-indicator.is-loading::before, .status-indicator.is-complete::before { display: none; }
+    .status-indicator.is-loading .loading-dots { display: block; position: absolute; inset: 0; }
+    .loading-dots span {
+      position: absolute;
+      inset: 0;
+      transform: rotate(calc(var(--dot-index) * 45deg));
+    }
+    .loading-dots span::after {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      margin: 3px auto;
+      border-radius: 50%;
+      background: #67e8f9;
+      animation: dot-pulse 0.9s ease-in-out infinite;
+      animation-delay: calc(var(--dot-index) * -0.1125s);
+    }
+    @keyframes dot-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.15); } }
+    .status-indicator.is-complete {
+      color: #6ee7b7;
+      border-color: rgba(52,211,153,0.45);
+      background: rgba(16,185,129,0.13);
+    }
+    .status-indicator.is-complete .complete-mark { display: block; }
     .status-title {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.85rem;
@@ -401,6 +452,8 @@ LANDING_HTML = """<!DOCTYPE html>
     @media (prefers-reduced-motion: reduce) {
       .status-sub { transition: none; }
       .status-sub.changing { transform: none; }
+      .loading-dots span::after, .progress-bar-fill.running { animation: none; }
+      .loading-dots span::after { opacity: 0.75; transform: none; }
     }
     .progress-bar-wrap {
       width: 140px;
@@ -653,7 +706,10 @@ LANDING_HTML = """<!DOCTYPE html>
       <!-- Status Card -->
       <div class="hud-card status-card">
         <div class="status-left">
-          <div class="spinner" id="statusSpinner"></div>
+          <div class="status-indicator" id="statusSpinner" role="img" aria-label="Ready for analysis">
+            <div class="loading-dots" aria-hidden="true"><span style="--dot-index:0"></span><span style="--dot-index:1"></span><span style="--dot-index:2"></span><span style="--dot-index:3"></span><span style="--dot-index:4"></span><span style="--dot-index:5"></span><span style="--dot-index:6"></span><span style="--dot-index:7"></span></div>
+            <svg class="complete-mark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg>
+          </div>
           <div>
             <div class="status-title" id="statusTitle">READY FOR INGESTION</div>
             <div class="status-sub" id="statusSub">Enter repository URL or upload ZIP</div>
@@ -878,6 +934,7 @@ LANDING_HTML = """<!DOCTYPE html>
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
+        setStatusIndicator('complete');
         document.getElementById('statusSub').textContent = 'Redirecting to interactive dashboard...';
 
         setTimeout(() => {
@@ -912,6 +969,7 @@ LANDING_HTML = """<!DOCTYPE html>
         document.getElementById('progressBar').classList.remove('running');
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('statusTitle').textContent = 'ANALYSIS COMPLETE';
+        setStatusIndicator('complete');
         setTimeout(() => {
           window.location.href = data.dashboard_url;
         }, 800);
@@ -940,8 +998,16 @@ LANDING_HTML = """<!DOCTYPE html>
       document.getElementById('statusSub').classList.remove('changing');
     }
 
+    function setStatusIndicator(state) {
+      const indicator = document.getElementById('statusSpinner');
+      indicator.classList.toggle('is-loading', state === 'loading');
+      indicator.classList.toggle('is-complete', state === 'complete');
+      indicator.setAttribute('aria-label', state === 'complete' ? 'Analysis complete' : state === 'loading' ? 'Analysis in progress' : 'Ready for analysis');
+    }
+
     function setAnalyzingState(title, sub) {
       stopStatusRotation();
+      setStatusIndicator('loading');
       document.getElementById('statusTitle').textContent = title;
       document.getElementById('statusSub').textContent = sub;
       let phraseIndex = 0;
@@ -962,6 +1028,7 @@ LANDING_HTML = """<!DOCTYPE html>
 
     function resetState() {
       stopStatusRotation();
+      setStatusIndicator('ready');
       document.getElementById('statusTitle').textContent = 'READY FOR INGESTION';
       document.getElementById('statusSub').textContent = 'Enter repository URL or upload ZIP';
       document.getElementById('progressBar').classList.remove('running');

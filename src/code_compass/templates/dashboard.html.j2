@@ -360,7 +360,8 @@
 
     /* ── Bento Grid & Section Cards ─────────────────────────────── */
     .section-card {
-      background: rgba(255, 255, 255, 0.03);
+      background: radial-gradient(circle at 100% 0%, rgba(56,189,248,0.055), transparent 42%),
+        linear-gradient(155deg, rgba(20,34,52,0.90), rgba(8,15,27,0.92));
       border: 1px solid var(--glass-border);
       border-radius: var(--radius-card);
       padding: 1.5rem;
@@ -406,6 +407,26 @@
       transform: translateY(-2px);
       box-shadow: var(--clay-highlight);
     }
+    .first-steps { margin-bottom:1.75rem; }
+    .first-steps-head { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:.9rem; }
+    .first-steps-head h2 { color:#fff; font-size:1.12rem; }
+    .first-steps-head p { color:var(--text-secondary); font-size:.8rem; }
+    .first-steps-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.85rem; }
+    .first-step {
+      display:block; min-width:0; padding:1rem 1.1rem; border-radius:14px;
+      border:1px solid rgba(125,211,252,.22); color:var(--text-primary); text-decoration:none;
+      background:radial-gradient(circle at 100% 0%,rgba(56,189,248,.14),transparent 55%),
+        repeating-linear-gradient(90deg,transparent 0 23px,rgba(148,163,184,.022) 24px),
+        rgba(9,22,38,.94);
+      transition:border-color .18s ease,transform .18s ease;
+    }
+    .first-step:hover { border-color:#38bdf8; transform:translateY(-2px); }
+    .first-step:focus-visible { outline:2px solid #67e8f9; outline-offset:2px; }
+    .first-step-kicker { display:block; font-size:.66rem; font-weight:800; color:#67e8f9; text-transform:uppercase; letter-spacing:.1em; }
+    .first-step-name { display:block; color:#fff; font-size:.98rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:.4rem 0 .15rem; }
+    .first-step-role { display:block; color:#b6c8d9; font-size:.79rem; line-height:1.4; }
+    .first-step-meta { display:block; color:#94a3b8; font-size:.71rem; margin-top:.55rem; }
+    @media (max-width:800px) { .first-steps-grid { grid-template-columns:1fr; } }
     .stat-label {
       font-size: 0.72rem;
       text-transform: uppercase;
@@ -636,8 +657,11 @@
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse 70% 80% at 0% 50%, rgba(0,180,216,0.07), transparent),
-        radial-gradient(ellipse 70% 80% at 100% 50%, rgba(59,130,212,0.06), transparent);
+        radial-gradient(ellipse 70% 80% at 0% 50%, rgba(0,180,216,0.09), transparent),
+        radial-gradient(ellipse 70% 80% at 100% 50%, rgba(59,130,212,0.07), transparent),
+        repeating-linear-gradient(90deg, transparent 0 39px, rgba(148,163,184,0.022) 40px),
+        repeating-linear-gradient(0deg, transparent 0 39px, rgba(148,163,184,0.022) 40px);
+      border:1px solid rgba(125,211,252,.08);
       pointer-events: none;
       border-radius: 1.5rem;
     }
@@ -987,6 +1011,11 @@
 
     <!-- Top Summary Stat Cards -->
     <div class="stat-cards" id="overview-cards"></div>
+
+    <div class="first-steps" id="first-steps" hidden>
+      <div class="first-steps-head"><h2>Start with these files</h2><p>Ranked from detected structure. Open a file to inspect its symbols.</p></div>
+      <div class="first-steps-grid" id="first-steps-grid"></div>
+    </div>
 
     <div class="bento-grid">
       <!-- Health & Architecture Scorecard -->
@@ -1431,6 +1460,46 @@
       card.appendChild(sub);
       container.appendChild(card);
     });
+
+    var roleHints = {
+      core:'Core module; inspect its symbols for details', api:'API routes or request handling',
+      data_model:'Data models and shared types', service:'Application services or jobs',
+      middleware:'Authentication or request middleware', ui:'User interface and presentation',
+      cli:'Command-line entry points', infra:'Infrastructure and configuration',
+      util:'Reusable helpers', test:'Tests and fixtures'
+    };
+    function likelyFileRole(f) {
+      var name = String(f.path || '').replace(/\\/g, '/').split('/').pop().toLowerCase();
+      if (/^(models?|schemas?|types?)\./.test(name)) return 'Data models and shared types';
+      if (/^(security|auth|authentication)\./.test(name)) return 'Authentication and security checks';
+      if (/^(orchestrator|coordinator)\./.test(name)) return 'Coordinates the analysis workflow';
+      if (/^(worker|jobs?|tasks?)\./.test(name)) return 'Runs background or scheduled work';
+      if (/^(renderer|rendering)\./.test(name)) return 'Builds the generated output';
+      if (/^(discovery|scanner)\./.test(name)) return 'Finds and indexes repository files';
+      return roleHints[f.layer] || 'Repository source file';
+    }
+    var startFiles = files.filter(function (f) {
+      return ['python','javascript','typescript'].includes(f.language) && f.layer !== 'test';
+    }).sort(function (a,b) { return (b.rank_score || 0) - (a.rank_score || 0); }).slice(0,3);
+    if (startFiles.length) {
+      document.getElementById('first-steps').hidden = false;
+      var stepsGrid = document.getElementById('first-steps-grid');
+      startFiles.forEach(function (f, index) {
+        var link = document.createElement('a');
+        link.className = 'first-step';
+        link.href = window.__SUMMARY_URL__ + '?tab=files&file=' + encodeURIComponent(f.path);
+        var kicker = document.createElement('span'); kicker.className = 'first-step-kicker';
+        kicker.textContent = index === 0 ? 'Suggested first stop' : 'Explore next · ' + (index + 1);
+        var name = document.createElement('span'); name.className = 'first-step-name';
+        name.textContent = String(f.path).split(/[\\/]/).pop(); name.title = f.path;
+        var role = document.createElement('span'); role.className = 'first-step-role';
+        role.textContent = 'Likely role: ' + likelyFileRole(f);
+        var meta = document.createElement('span'); meta.className = 'first-step-meta';
+        meta.textContent = (f.symbols_count || 0) + (f.symbols_count === 1 ? ' symbol' : ' symbols') + ' · ' + (f.in_degree || 0) + (f.in_degree === 1 ? ' incoming call' : ' incoming calls');
+        link.appendChild(kicker); link.appendChild(name); link.appendChild(role); link.appendChild(meta);
+        stepsGrid.appendChild(link);
+      });
+    }
 
     // Health Scorecard
     var hScore = repoStats.health_score ?? '—';
