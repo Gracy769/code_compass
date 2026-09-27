@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.request
 from pathlib import Path
 
@@ -88,23 +89,28 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
     except Exception:
         data = []
 
-    # GitHub computes weekly addition/deletion totals separately. It can
-    # return 202 while rebuilding, so absent totals remain explicitly unknown.
+    # GitHub computes weekly addition/deletion totals separately. A 202 starts
+    # the calculation; give it two short chances to finish before using Git.
     if data:
         try:
             url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
-            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=8) as resp:
-                if resp.status == 200:
-                    details = json.loads(resp.read(5_000_001).decode("utf-8"))
-                    if isinstance(details, list):
-                        for item in details:
-                            login = (item.get("author") or {}).get("login")
-                            weeks = item.get("weeks", [])
-                            if login and isinstance(weeks, list):
-                                line_stats[login] = (
-                                    sum(int(week.get("a", 0)) for week in weeks),
-                                    sum(int(week.get("d", 0)) for week in weeks),
-                                )
+            for attempt in range(3):
+                with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=8) as resp:
+                    if resp.status == 200:
+                        details = json.loads(resp.read(5_000_001).decode("utf-8"))
+                        if isinstance(details, list):
+                            for item in details:
+                                login = (item.get("author") or {}).get("login")
+                                weeks = item.get("weeks", [])
+                                if login and isinstance(weeks, list):
+                                    line_stats[login] = (
+                                        sum(int(week.get("a", 0)) for week in weeks),
+                                        sum(int(week.get("d", 0)) for week in weeks),
+                                    )
+                        break
+                    if resp.status != 202 or attempt == 2:
+                        break
+                time.sleep(attempt + 1)
         except Exception:
             pass
 
@@ -133,11 +139,13 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
 def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[ContributorStat]:
     """Return per-author commit and line-change stats for the repo at *root*.
 
-    Prefer GitHub's contributor identities and commit counts for a repository
-    with a verified GitHub remote. Use the complete local history otherwise.
+    Use GitHub's contributor identities when its line totals are complete.
+    Otherwise use full local history, so the displayed rows and line totals
+    describe the same commits and authors.
     """
     stats_map: dict[str, dict] = {}
     has_local_git = False
+    github_stats: list[ContributorStat] = []
 
     try:
         from git import InvalidGitRepositoryError, NoSuchPathError, Repo
@@ -147,11 +155,25 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
         has_local_git = False
 
     if has_local_git:
-        # The API resolves renamed author emails to real GitHub accounts and
-        # includes bots. A shallow local log cannot provide an accurate list.
+        # GitHub's weekly statistics can return 202 while being generated.
+        # In that case, use local numstat only when the clone has full history.
         slug = _detect_github_slug(root)
         if slug and not prefer_local:
             github_stats = _fetch_github_api_contributors(*slug)
+            if github_stats and all(c.line_stats_available for c in github_stats):
+                # GitHub documents zeroed addition/deletion totals for repos
+                # with 10,000+ commits; use Git history in that case.
+                try:
+                    if int(repo.git.rev_list("--count", "HEAD")) < 10_000:
+                        return github_stats
+                except Exception:
+                    return github_stats
+        try:
+            if github_stats and repo.git.rev_parse("--is-shallow-repository").strip() == "true":
+                return github_stats
+        except Exception:
+            # Older Git versions may not support this flag; avoid claiming
+            # complete local totals when clone depth cannot be verified.
             if github_stats:
                 return github_stats
         try:
@@ -159,7 +181,7 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
                 with repo.git.custom_environment(
                     GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_OPTIONAL_LOCKS="0",
                 ):
-                    log_output: str = repo.git.log("--no-ext-diff", "--numstat", "--format=%ae|%an")
+                    log_output: str = repo.git.log("--no-ext-diff", "--numstat", "--use-mailmap", "--format=%aE|%aN")
                 current_author: str | None = None
                 current_name: str = ""
 
@@ -208,4 +230,4 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
             for i, (email, data) in enumerate(sorted_stats)
         ]
 
-    return []
+    return github_stats
