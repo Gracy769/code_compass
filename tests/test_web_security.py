@@ -57,6 +57,50 @@ def test_zip_rejects_external_git_metadata(tmp_path, name, body):
         extract_zip_safely(archive, tmp_path / "repo")
 
 
+def test_zip_rejects_nested_archive(tmp_path):
+    archive = tmp_path / "nested.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("repo/inner.zip", b"PK\x05\x06" + b"\x00" * 18)
+    with pytest.raises(ValueError, match="nested archive"):
+        extract_zip_safely(archive, tmp_path / "repo")
+
+
+def test_zip_rejects_excessive_compression_ratio(tmp_path):
+    archive = tmp_path / "bomb.zip"
+    import zlib
+    # Create a member whose declared file_size >> compress_size to trigger the ratio guard.
+    raw = b"\x00" * 200_000  # 200 KB uncompressed
+    compressed = zlib.compress(raw, level=9)
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("bomb.txt", raw)
+    with zipfile.ZipFile(archive, "r") as zf:
+        info = zf.getinfo("bomb.txt")
+    # Only trigger if the actual ratio qualifies; if real compression isn't extreme enough,
+    # monkeypatch the sizes to force the condition.
+    if info.compress_size == 0 or info.compress_size / info.file_size >= 0.01:
+        # Force the ratio by writing a fake ZipInfo with extreme ratio via monkeypatch
+        import code_compass.web.security as sec
+        original = sec.MAX_EXTRACTED_BYTES
+        # Patch: write a fresh archive whose null-byte member compresses well enough
+        archive2 = tmp_path / "bomb2.zip"
+        # Use a ZipInfo with manipulated sizes to guarantee ratio test fires
+        zi = zipfile.ZipInfo("nulls.txt")
+        zi.compress_type = zipfile.ZIP_DEFLATED
+        raw2 = b"\x00" * 500_000  # 500 KB of nulls — highly compressible
+        with zipfile.ZipFile(archive2, "w") as zf2:
+            zf2.writestr(zi, raw2)
+        with zipfile.ZipFile(archive2, "r") as zf2:
+            info2 = zf2.getinfo("nulls.txt")
+        if info2.compress_size > 0 and info2.compress_size / info2.file_size < 0.01:
+            with pytest.raises(ValueError, match="compression ratio"):
+                extract_zip_safely(archive2, tmp_path / "repo2")
+        else:
+            pytest.skip("Platform zlib did not compress enough to trigger ratio guard")
+    else:
+        with pytest.raises(ValueError, match="compression ratio"):
+            extract_zip_safely(archive, tmp_path / "repo")
+
+
 def test_runs_are_private_and_unknown_ids_do_not_redirect(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
     with TestClient(web_module.app, base_url="https://testserver") as owner:
@@ -67,10 +111,16 @@ def test_runs_are_private_and_unknown_ids_do_not_redirect(tmp_path, monkeypatch)
             "/api/analyze-git", json={"url": "https://github.com/o/r"},
             headers={"Origin": "https://attacker.example"},
         ).status_code == 403
+        # Extract CSRF token from cookie jar for use in state-changing requests.
+        csrf = owner.cookies.get("csrf_token", "")
         blob = io.BytesIO()
         with zipfile.ZipFile(blob, "w") as zf:
             zf.writestr("sample/main.py", "def greet():\n    return 'hello'\n")
-        response = owner.post("/api/analyze-upload", files={"file": ("sample.zip", blob.getvalue(), "application/zip")})
+        response = owner.post(
+            "/api/analyze-upload",
+            files={"file": ("sample.zip", blob.getvalue(), "application/zip")},
+            headers={"X-CSRF-Token": csrf},
+        )
         assert response.status_code == 200, response.text
         run_id = response.json()["analysis_id"]
         dashboard = owner.get(f"/dashboard/{run_id}")

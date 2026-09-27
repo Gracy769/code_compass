@@ -33,6 +33,7 @@ from code_compass.web.security import (
     canonical_github_url,
     check_run_owner,
     cleanup_expired_runs,
+    log_security_event,
 )
 
 app = FastAPI(
@@ -41,11 +42,41 @@ app = FastAPI(
     version="0.2.0",
 )
 
+# Step 3: Content-Security-Policy middleware — applied to all HTML responses.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline'; "
+    "connect-src 'self' https://api.github.com; "
+    "img-src 'self' data: https:; "
+    "font-src 'self';"
+)
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    if "text/html" in response.headers.get("content-type", ""):
+        response.headers["Content-Security-Policy"] = _CSP
+    return response
+
+
 STORAGE_DIR = Path(tempfile.gettempdir()) / "code_compass_web_runs"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 STORAGE_DIR.chmod(0o700)
 JOB_SLOTS = asyncio.Semaphore(2)
 SESSION_COOKIE = "code_compass_session"
+CSRF_COOKIE = "csrf_token"
+
+# --- Step 1: Per-IP sequential rate limiter (max 10 requests / 60 s) ---
+_RATE_LIMIT: dict[str, list[float]] = {}
+_RL_WINDOW = 60
+_RL_MAX = 10
+
+# --- Step 9c: Per-IP upload rate limiter (max 2 uploads / 30 s) ---
+_UPLOAD_RATE: dict[str, list[float]] = {}
+_UL_WINDOW = 30
+_UL_MAX = 2
 
 
 class GitAnalyzeRequest(BaseModel):
@@ -59,6 +90,39 @@ class AuditRequest(BaseModel):
     endpoint: str
     model: str
     api_key: str
+
+
+def _check_rate_limit(ip: str) -> None:
+    """Raise 429 if the IP has exceeded the per-minute request cap."""
+    now = time.time()
+    timestamps = _RATE_LIMIT.get(ip, [])
+    timestamps = [t for t in timestamps if now - t < _RL_WINDOW]
+    timestamps.append(now)
+    _RATE_LIMIT[ip] = timestamps
+    if len(timestamps) > _RL_MAX:
+        log_security_event("rate_limit_block", ip, f"window={_RL_WINDOW}s max={_RL_MAX}")
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
+
+
+def _check_upload_rate(ip: str) -> None:
+    """Raise 429 if the IP has exceeded the per-30-second upload cap."""
+    now = time.time()
+    timestamps = _UPLOAD_RATE.get(ip, [])
+    timestamps = [t for t in timestamps if now - t < _UL_WINDOW]
+    timestamps.append(now)
+    _UPLOAD_RATE[ip] = timestamps
+    if len(timestamps) > _UL_MAX:
+        log_security_event("rate_limit_block", ip, f"upload_window={_UL_WINDOW}s max={_UL_MAX}")
+        raise HTTPException(status_code=429, detail="Too many archive uploads. Try again shortly.")
+
+
+def _check_csrf(request: Request) -> None:
+    """Validate double-submit CSRF token (header must match cookie)."""
+    header_token = request.headers.get("x-csrf-token", "")
+    cookie_token = request.cookies.get(CSRF_COOKIE, "")
+    if not header_token or not cookie_token or header_token != cookie_token:
+        log_security_event("csrf_mismatch", request.client.host if request.client else "", "")
+        raise HTTPException(status_code=403, detail="CSRF token mismatch.")
 
 
 def _session(request: Request) -> str:
@@ -82,6 +146,11 @@ def _new_run(request: Request) -> tuple[str, Path]:
 
 
 def _run_worker(kind: str, source: str, work_dir: Path, *, strict: bool, semantic: bool = False, token: str = "", name: str = "", endpoint: str = "", model: str = "", api_key: str = "") -> None:
+    # Step 7: Subprocess path guard — ensure work_dir is inside STORAGE_DIR.
+    work_dir_path = Path(str(work_dir)).resolve()
+    if not work_dir_path.is_relative_to(STORAGE_DIR.resolve()) or not work_dir_path.is_dir():
+        log_security_event("path_traversal_attempt", "", f"work_dir={work_dir}")
+        raise ValueError("Invalid work directory path traversal.")
     env = os.environ.copy()
     if token:
         env["CODE_COMPASS_CLONE_TOKEN"] = token
@@ -117,13 +186,16 @@ async def _bounded_worker(kind: str, source: str, work_dir: Path, *, strict: boo
         JOB_SLOTS.release()
 
 
-# Embedded responsive landing page
+# Embedded responsive Cyberpunk Hero Landing Page
 LANDING_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Code Compass — Autonomous Codebase Architecture Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070b14;
@@ -638,74 +710,6 @@ LANDING_HTML = """<!DOCTYPE html>
       .status-card { flex-wrap: wrap; }
       footer { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
     }
-    /* Editorial landing treatment; the existing loading and completion states remain intact. */
-    :root {
-      --bg-dark: #171715;
-      --bg-card: #242320;
-      --border-cyan: #514a40;
-      --accent-cyan: #c96f4d;
-      --accent-sky: #e0a07b;
-      --accent-blue: #c96f4d;
-      --glow-cyan: transparent;
-      --text-muted: #bdb3a8;
-    }
-    body {
-      background-color: #171715;
-      background-image: radial-gradient(rgba(242,238,231,.027) .6px,transparent .6px);
-      background-size: 7px 7px;
-      color: #f2eee7;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-      line-height: 1.55;
-    }
-    nav { background: #1c1b19; border-color: #48443e; backdrop-filter: none; padding: 1rem clamp(1rem, 4vw, 4rem); }
-    .brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.55rem; font-weight: 400; letter-spacing: -.03em; color: #f2eee7; }
-    .brand svg { background: transparent; color: #d98662; box-shadow: none; border: 1px solid #a35e46; border-radius: 50%; padding: 5px; }
-    .nav-links a { color: #c5bdb2; }
-    .nav-links a:hover { color: #e6a17f; }
-    main { max-width: 1540px; gap: clamp(2rem, 5vw, 6rem); padding: clamp(3rem, 7vw, 7rem) clamp(1rem, 4vw, 4rem); }
-    main::before { inset: 1.8rem 0; background: none; border: 0; }
-    .hero-left { gap: 1.45rem; }
-    .tagline { font-family: Consolas, 'SFMono-Regular', monospace; color: #e1a27e; letter-spacing: .15em; font-size: .72rem; }
-    .headline { color: #f2eee7; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(3.25rem, 5.2vw, 5.75rem); font-weight: 400; letter-spacing: -.045em; line-height: 1.03; }
-    .headline span { color: #d98763; text-shadow: none; }
-    .subtext { color: #c8bfb4; max-width: 32rem; font-size: 1.04rem; line-height: 1.72; }
-    .search-input-wrap { background: #242320; border-color: #746052; border-radius: 8px; box-shadow: none; min-height: 58px; }
-    .search-input-wrap:focus-within { border-color: #e9a982; box-shadow: 0 0 0 2px rgba(233,169,130,.22); }
-    .search-input { color: #f2eee7; }
-    .search-input::placeholder { color: #a89e93; }
-    .btn { border-radius: 7px; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
-    .btn-primary { background: #c96f4d; color: #171715; box-shadow: none; }
-    .btn-primary:hover { background: #e6a17f; box-shadow: none; transform: translateY(-1px); }
-    .btn-secondary { background: #292722; border: 1px solid #62574d; color: #f2eee7; }
-    .btn-secondary:hover { background: #383028; border-color: #b77355; transform: translateY(-1px); }
-    .presets { color: #bdb3a8; }
-    .chip { background: #282521; border: 1px solid #5b5148; border-radius: 6px; color: #e8d8c9; font-family: Consolas, monospace; }
-    .chip:hover { background: #443128; border-color: #c96f4d; color: #f2eee7; }
-    .hud-card { background: #242320; border-color: #514a40; border-radius: 10px; box-shadow: none; backdrop-filter: none; }
-    .status-indicator { color: #d98662; background: #372b24; border-color: #9d6249; }
-    .status-indicator::before { box-shadow: none; }
-    .loading-dots span::after { background: #e6a17f; }
-    .status-indicator.is-complete { color: #b4c9a6; border-color: #72846e; background: #303b31; }
-    .status-title { color: #f2eee7; font-family: Consolas, monospace; }
-    .status-word-window { color: #c8bfb4; }
-    .status-word-clip { color: #e9ab88; }
-    .progress-bar-fill { background: #d98662; }
-    .canvas-wrap { background: radial-gradient(circle at center,rgba(201,111,77,.065),transparent 70%); }
-    .map-overlay { background: #27231f; border-color: #5b5148; color: #bdb3a8; }
-    .map-overlay-title { color: #f2eee7; font-family: Consolas, monospace; }
-    .dot-cyan { background: #d98662; }
-    .dot-amber { background: #d6b375; }
-    .metric-card { padding: 1.1rem; }
-    .metric-icon { background: #382b23; border-color: #7f5542; color: #e1a27e; }
-    .metric-val { color: #f2eee7; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 1.35rem; }
-    .modal-backdrop { backdrop-filter: blur(3px); }
-    .modal-box { background: #292621; border-color: #6b594b; border-radius: 10px; }
-    .modal-title { font-family: Georgia, 'Times New Roman', serif; color: #f2eee7; font-weight: 400; font-size: 1.7rem; }
-    .modal-input { background: #1c1b19; color: #f2eee7; border-color: #6b594b; }
-    footer { border-color: #48443e; color: #a99f94; font-family: Consolas, monospace; }
-    :is(button, a, input, [tabindex]):focus-visible { outline: 2px solid #efb695; outline-offset: 3px; }
-    @media (prefers-reduced-motion: reduce) { .btn, .chip { transition: none; } }
-    @media (max-width: 640px) { main { padding: 3rem 1rem; } .headline { font-size: clamp(2.7rem, 10vw, 4rem); } }
   </style>
 </head>
 <body>
@@ -912,12 +916,12 @@ LANDING_HTML = """<!DOCTYPE html>
     resize();
 
     const nodes = [
-      { name: 'core', x: 0.5, y: 0.42, r: 14, color: '#d98763', pulse: 0 },
-      { name: 'api', x: 0.32, y: 0.22, r: 10, color: '#a7b69a', pulse: 1 },
-      { name: 'models', x: 0.72, y: 0.26, r: 11, color: '#a7b69a', pulse: 2 },
+      { name: 'core', x: 0.5, y: 0.42, r: 14, color: '#38bdf8', pulse: 0 },
+      { name: 'api', x: 0.32, y: 0.22, r: 10, color: '#00b4d8', pulse: 1 },
+      { name: 'models', x: 0.72, y: 0.26, r: 11, color: '#00b4d8', pulse: 2 },
       { name: 'services', x: 0.28, y: 0.72, r: 10, color: '#f59e0b', pulse: 3 },
-      { name: 'data', x: 0.65, y: 0.76, r: 10, color: '#a7b69a', pulse: 4 },
-      { name: 'utils', x: 0.82, y: 0.52, r: 9, color: '#a7b69a', pulse: 5 },
+      { name: 'data', x: 0.65, y: 0.76, r: 10, color: '#00b4d8', pulse: 4 },
+      { name: 'utils', x: 0.82, y: 0.52, r: 9, color: '#00b4d8', pulse: 5 },
     ];
 
     const edges = [
@@ -934,7 +938,7 @@ LANDING_HTML = """<!DOCTYPE html>
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       ctx.save();
-      ctx.strokeStyle = 'rgba(218, 171, 133, 0.06)';
+      ctx.strokeStyle = 'rgba(0, 180, 216, 0.06)';
       ctx.lineWidth = 1;
       for (let i = -4; i <= 4; i++) {
         ctx.beginPath();
@@ -956,7 +960,7 @@ LANDING_HTML = """<!DOCTYPE html>
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         ctx.lineTo(bx, by);
-        ctx.strokeStyle = 'rgba(218, 171, 133, 0.25)';
+        ctx.strokeStyle = 'rgba(0, 180, 216, 0.25)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
       });
@@ -970,7 +974,7 @@ LANDING_HTML = """<!DOCTYPE html>
         // Glow ring
         ctx.beginPath();
         ctx.arc(x, y, pulseR + 8, 0, Math.PI * 2);
-        ctx.fillStyle = n.color === '#f59e0b' ? 'rgba(214, 179, 117, 0.1)' : 'rgba(217, 135, 99, 0.1)';
+        ctx.fillStyle = n.color === '#f59e0b' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(56, 189, 248, 0.12)';
         ctx.fill();
 
         // Node circle
@@ -978,13 +982,13 @@ LANDING_HTML = """<!DOCTYPE html>
         ctx.arc(x, y, pulseR, 0, Math.PI * 2);
         ctx.fillStyle = n.color;
         ctx.shadowColor = n.color;
-        ctx.shadowBlur = 7;
+        ctx.shadowBlur = 15;
         ctx.fill();
         ctx.shadowBlur = 0;
 
         // Label
         ctx.font = '600 11px "JetBrains Mono", monospace';
-      ctx.fillStyle = '#f2eee7';
+        ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'center';
         ctx.fillText(n.name, x, y - pulseR - 6);
       });
@@ -1029,10 +1033,17 @@ LANDING_HTML = """<!DOCTYPE html>
 
       try {
         const token = githubToken;
+        // Step 2: Send token in Authorization header, not in request body.
+        // Step 4: Echo CSRF cookie value in X-CSRF-Token header (double-submit pattern).
+        const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
         const res = await fetch('/api/analyze-git', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url, strict: true, semantic: false, token: token })
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+            ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+          },
+          body: JSON.stringify({ url: url, strict: true, semantic: false })
         });
 
         const data = await res.json();
@@ -1066,8 +1077,11 @@ LANDING_HTML = """<!DOCTYPE html>
       formData.append('file', file);
 
       try {
+        // Step 4: Echo CSRF cookie value in X-CSRF-Token header (double-submit pattern).
+        const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
         const res = await fetch('/api/analyze-upload', {
           method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken },
           body: formData
         });
 
@@ -1198,13 +1212,19 @@ LANDING_HTML = """<!DOCTYPE html>
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request) -> HTMLResponse:
-    """Serve the Code Compass landing page."""
+    """Serve the Cult UI-inspired Cyberpunk Hero Landing Page."""
     response = HTMLResponse(content=LANDING_HTML, status_code=200)
+    _secure = request.url.hostname not in {"localhost", "127.0.0.1"}
     if not re.fullmatch(r"[A-Za-z0-9_-]{43}", request.cookies.get(SESSION_COOKIE, "")):
         response.set_cookie(
             SESSION_COOKIE, secrets.token_urlsafe(32), httponly=True,
-            secure=request.url.hostname not in {"localhost", "127.0.0.1"},
-            samesite="strict", max_age=24 * 60 * 60,
+            secure=_secure, samesite="strict", max_age=24 * 60 * 60,
+        )
+    # Step 4: Set CSRF double-submit cookie (httponly=False so JS can read it).
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", request.cookies.get(CSRF_COOKIE, "")):
+        response.set_cookie(
+            CSRF_COOKIE, secrets.token_urlsafe(32), httponly=False,
+            secure=_secure, samesite="strict", max_age=24 * 60 * 60,
         )
     return response
 
@@ -1276,6 +1296,10 @@ async def list_repos(request: Request) -> dict:
 @app.post("/api/analyze-git")
 async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str, str]:
     """Clone a public/private Git repository and run Code Compass analysis."""
+    # Step 1: Per-IP rate limit.
+    _check_rate_limit(request.client.host if request.client else "unknown")
+    # Step 4: CSRF validation.
+    _check_csrf(request)
     try:
         repo_url = canonical_github_url(req.url)
     except ValueError as exc:
@@ -1302,8 +1326,11 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
 
     run_id, work_dir = _new_run(request)
 
+    # Step 2: Extract token from Authorization header instead of request body.
+    _token = (request.headers.get("authorization") or "").replace("Bearer ", "").strip()
+
     try:
-        await _bounded_worker("git", repo_url, work_dir, strict=req.strict, semantic=req.semantic, token=req.token or "")
+        await _bounded_worker("git", repo_url, work_dir, strict=req.strict, semantic=req.semantic, token=_token)
     except Exception as exc:
         shutil.rmtree(work_dir, ignore_errors=True)
         if isinstance(exc, HTTPException):
@@ -1332,6 +1359,12 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
 @app.post("/api/analyze-upload")
 async def analyze_zip_upload(request: Request, file: UploadFile = File(...)) -> dict[str, str]:
     """Accept and extract a repository ZIP file and run analysis."""
+    # Step 1: Per-IP rate limit.
+    _check_rate_limit(request.client.host if request.client else "unknown")
+    # Step 4: CSRF validation.
+    _check_csrf(request)
+    # Step 9c: Per-IP upload rate limit.
+    _check_upload_rate(request.client.host if request.client else "unknown")
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only .zip files are supported.")
 
@@ -1371,6 +1404,7 @@ async def run_configured_audit(analysis_id: str, config: AuditRequest, request: 
         raise HTTPException(status_code=404, detail="Analysis not found.")
     run_dir = STORAGE_DIR / analysis_id
     if not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        log_security_event("failed_auth", request.client.host if request.client else "", f"audit/{analysis_id}")
         raise HTTPException(status_code=404, detail="Analysis not found.")
     if not (run_dir / "analysis.json").is_file():
         raise HTTPException(status_code=404, detail="Analysis source is unavailable.")
@@ -1414,6 +1448,7 @@ async def view_dashboard(analysis_id: str, request: Request):
     if not dash_path.is_file():
         raise HTTPException(status_code=404, detail="Dashboard not found.")
     if analysis_id != "demo" and not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        log_security_event("failed_auth", request.client.host if request.client else "", f"dashboard/{analysis_id}")
         raise HTTPException(status_code=404, detail="Dashboard not found.")
     content = dash_path.read_text(encoding="utf-8")
     # Dynamically rewrite relative summary links to FastAPI route
@@ -1431,6 +1466,7 @@ async def view_summary(analysis_id: str, request: Request):
     if not summary_path.is_file():
         raise HTTPException(status_code=404, detail="Summary not found.")
     if analysis_id != "demo" and not check_run_owner(run_dir, request.cookies.get(SESSION_COOKIE)):
+        log_security_event("failed_auth", request.client.host if request.client else "", f"summary/{analysis_id}")
         raise HTTPException(status_code=404, detail="Summary not found.")
 
     content = summary_path.read_text(encoding="utf-8")

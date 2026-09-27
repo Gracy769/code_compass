@@ -305,7 +305,7 @@
       if (!svg) return;
       var exportSvg = svg.cloneNode(true);
       var style = svgEl('style');
-      style.textContent = '.mindmap-edge{fill:none;stroke:#b17d67;stroke-width:1.8}.mindmap-node rect{stroke:#877363;stroke-width:1.2}.mindmap-node.root rect{fill:#8d5540}.mindmap-node.layer rect{fill:#594336}.mindmap-node.file rect{fill:#3f4338}.mindmap-node.symbol rect{fill:#313a37}.mindmap-node.more rect{fill:#34312d}.mindmap-node text{fill:#f5eee4;font:500 15px sans-serif}.mindmap-node .node-meta{fill:#e3cfbc;font-size:11px}.mindmap-arrow circle{fill:#634b3e;stroke:#c28d71}.mindmap-arrow text{fill:#fff;font:700 16px sans-serif}';
+      style.textContent = '.mindmap-edge{fill:none;stroke:#829bca;stroke-width:1.8}.mindmap-node rect{stroke:#849db0;stroke-width:1.2}.mindmap-node.root rect{fill:#474c68}.mindmap-node.layer rect{fill:#344758}.mindmap-node.file rect{fill:#294640}.mindmap-node.symbol rect{fill:#263c49}.mindmap-node.more rect{fill:#24303e}.mindmap-node text{fill:#f7fbff;font:500 15px sans-serif}.mindmap-node .node-meta{fill:#b8c9d9;font-size:11px}.mindmap-arrow circle{fill:#445364;stroke:#849db0}.mindmap-arrow text{fill:#fff;font:700 16px sans-serif}';
       exportSvg.prepend(style);
       var blob = new Blob([new XMLSerializer().serializeToString(exportSvg)],
         {type:'image/svg+xml'});
