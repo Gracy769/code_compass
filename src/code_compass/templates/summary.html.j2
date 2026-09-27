@@ -139,6 +139,28 @@
       box-shadow: var(--clay-shadow);
       overflow-x: auto;
     }
+    .explorer-intro { margin-bottom: 1.4rem; }
+    .explorer-eyebrow { color:#67e8f9; text-transform:uppercase; letter-spacing:0.13em; font-size:0.72rem; font-weight:800; }
+    .explorer-intro h1 { color:#fff; font-size:clamp(1.45rem,2.7vw,2.1rem); margin:0.35rem 0; letter-spacing:-0.025em; }
+    .explorer-intro p { color:var(--text-secondary); max-width:740px; }
+    .explorer-heading { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:0.9rem; }
+    .explorer-heading h2 { color:#fff; font-size:1.05rem; }
+    .explorer-heading p { color:var(--text-secondary); font-size:0.78rem; }
+    .starter-grid, .layer-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:0.7rem; }
+    .starter-card, .layer-card { font:inherit; text-align:left; color:var(--text-primary); border:1px solid rgba(148,163,184,0.17); border-radius:11px; background:rgba(15,23,42,0.72); padding:0.85rem 0.95rem; min-width:0; }
+    .starter-card { cursor:pointer; }
+    .starter-card:hover, .layer-card:hover { border-color:rgba(56,189,248,0.55); background:rgba(15,36,61,0.8); }
+    .starter-card strong, .layer-card strong { display:block; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .starter-card small, .layer-card small { display:block; color:var(--text-secondary); margin-top:0.3rem; }
+    .starter-card .starter-path { color:#93c5fd; font-size:0.76rem; overflow-wrap:anywhere; margin-top:0.2rem; }
+    .layer-card { cursor:pointer; border-left:3px solid #38bdf8; }
+    .layer-card.active { border-color:#38bdf8; background:rgba(14,116,144,0.18); }
+    .layer-card .layer-count { float:right; color:#67e8f9; font-weight:700; }
+    .explorer-note { color:var(--text-secondary); font-size:0.78rem; margin-top:0.7rem; }
+    .results-line { color:var(--text-secondary); font-size:0.8rem; margin:-0.35rem 0 0.85rem; }
+    .file-action { border:0; background:transparent; color:#7dd3fc; cursor:pointer; font:inherit; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+    .file-action:hover { text-decoration:underline; }
+    .group-header-row button { color:inherit; background:none; border:0; font:inherit; cursor:pointer; width:100%; text-align:left; }
 
     /* ── Toolbar ────────────────────────────────────────────────── */
     .table-toolbar {
@@ -250,6 +272,7 @@
       .table-toolbar input[type="text"] { min-width: 0 !important; width: 100%; }
       .data-table { min-width: 680px; }
       .pagination { gap: 0.5rem; }
+      .starter-grid, .layer-grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -281,18 +304,35 @@
 
 <!-- ── Tab Navigation Strip ─────────────────────────────────────── -->
 <div class="tab-strip" role="tablist">
-  <button class="tab-btn active" role="tab" data-tab="files">Files &amp; Layers</button>
-  <button class="tab-btn"        role="tab" data-tab="symbols">Symbols</button>
+  <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-files" data-tab="files">Files &amp; Layers</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-symbols" data-tab="symbols">Symbols</button>
 </div>
 
 <!-- ── Content ───────────────────────────────────────────────────── -->
 <div class="tab-content">
 
+  <header class="explorer-intro">
+    <div class="explorer-eyebrow">Repository explorer</div>
+    <h1>Find your way through the codebase</h1>
+    <p>Start with a high-ranked file, narrow by layer, then inspect its symbols. Rankings and layers are static hints; verify behavior in source.</p>
+  </header>
+
   <!-- ── FILES & LAYERS TAB ─────────────────────────────────────── -->
   <section id="tab-files" class="tab-section active" role="tabpanel">
     <div class="section-card">
+      <div class="explorer-heading"><h2>Start here</h2><p>Files ranked highest by the static scan</p></div>
+      <div id="starter-files" class="starter-grid"></div>
+    </div>
+    <div class="section-card">
+      <div class="explorer-heading"><h2>Browse by layer</h2><p>Select a layer to filter files</p></div>
+      <div id="layer-overview" class="layer-grid"></div>
+      <p class="explorer-note">Layer names are inferred from paths and symbols. They do not prove runtime boundaries.</p>
+    </div>
+    <div class="section-card">
+      <div class="explorer-heading"><h2>Files</h2><p>Grouped by folder so nearby code stays together</p></div>
       <div class="table-toolbar">
         <input type="text" id="files-search" placeholder="Search file path or tags…" style="min-width:240px;" />
+        <label style="display:flex;align-items:center;gap:0.4rem;color:var(--text-secondary);font-size:0.82rem;"><input type="checkbox" id="files-source-only" checked /> Source files only</label>
         <select id="files-layer-filter">
           <option value="">All Layers</option>
           <option value="core">Core / Engine</option>
@@ -314,6 +354,7 @@
           <option value="Tier 4">Tier 4</option>
         </select>
       </div>
+      <p class="results-line" id="files-results" role="status"></p>
       <div style="overflow-x:auto;">
         <table class="data-table" id="files-table">
           <colgroup>
@@ -340,6 +381,7 @@
   <!-- ── SYMBOLS TAB ────────────────────────────────────────────── -->
   <section id="tab-symbols" class="tab-section" role="tabpanel">
     <div class="section-card">
+      <div class="explorer-heading"><h2>Symbols</h2><p>Open a file from the Files tab, or search all functions and classes</p></div>
       <div class="table-toolbar">
         <input type="text" id="sym-search" placeholder="Search symbol name or file…" style="min-width:240px;" />
         <select id="sym-kind-filter">
@@ -361,9 +403,12 @@
           <option value="util">Utilities</option>
           <option value="test">Tests</option>
         </select>
-        <button class="toggle-btn active" id="sym-group-layer" title="Group by Layer">Group: Layer</button>
+        <button class="toggle-btn active" id="sym-group-file" title="Group by File">Group: File</button>
+        <button class="toggle-btn" id="sym-group-layer" title="Group by Layer">Group: Layer</button>
         <button class="toggle-btn" id="sym-group-kind" title="Group by Kind">Group: Kind</button>
       </div>
+      <p class="results-line" id="sym-results" role="status"></p>
+      <button type="button" class="toggle-btn" id="sym-clear-file" style="display:none;margin:-0.25rem 0 0.9rem;">Clear file focus</button>
       <div style="overflow-x:auto;">
         <table class="data-table" id="sym-table">
           <colgroup>
@@ -395,7 +440,7 @@ const _rawData = {{ data_json | tojson }};
 const DATA = typeof _rawData === 'string' ? JSON.parse(_rawData) : (_rawData || {});
 const GITHUB_SLUG = {{ github_slug | tojson }};
 const GITHUB_REF = {{ github_ref | tojson }};
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 35;
 
 /* ── Utilities ─────────────────────────────────────────── */
 const LAYER_LABELS = {
@@ -435,10 +480,10 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function badge(cls, text) { return `<span class="badge ${cls}">${escHtml(text)}</span>`; }
-function githubLink(path) {
+function githubLink(path, line) {
   if (!GITHUB_SLUG || !GITHUB_REF) return `<span title="${escHtml(path)}">${escHtml(path)}</span>`;
   const safePath = String(path).replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/');
-  const url = `https://github.com/${encodeURI(GITHUB_SLUG)}/blob/${encodeURIComponent(GITHUB_REF)}/${safePath}`;
+  const url = `https://github.com/${encodeURI(GITHUB_SLUG)}/blob/${encodeURIComponent(GITHUB_REF)}/${safePath}${line ? '#L' + Number(line) : ''}`;
   return `<a href="${url}" target="_blank" rel="noopener" title="${escHtml(path)}">${escHtml(path)}</a>`;
 }
 function tagPills(tags, max, onClick) {
@@ -453,17 +498,106 @@ function tagPills(tags, max, onClick) {
    ───────────────────────────────────────────────────────── */
 let filesPage = 0;
 let filesSorted = [];
-let filesGroupOpen = {};       // layer -> bool (open/closed)
+let filesGroupOpen = {};       // directory -> bool (open/closed)
 let filesActiveTagFilter = ''; // clicked tag pill filter
+function directoryOf(path) {
+  const normal = String(path || '').replace(/\\/g, '/');
+  const index = normal.lastIndexOf('/');
+  return index < 0 ? 'Repository root' : normal.slice(0, index);
+}
+function isSourceFile(file) { return ['python','javascript','typescript'].includes(file.language); }
+
+function renderExplorerOverview() {
+  const allFiles = DATA.files || [];
+  const eligible = allFiles.filter(file => isSourceFile(file) && (file.symbols_count || 0) > 0 && file.layer !== 'test');
+  const ranked = (eligible.length ? eligible : allFiles.filter(isSourceFile)).slice()
+    .sort((a,b) => (b.rank_score || 0) - (a.rank_score || 0));
+  const starter = document.getElementById('starter-files');
+  ranked.slice(0, 4).forEach((file, index) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'starter-card';
+    const title = document.createElement('strong');
+    title.textContent = `${index + 1}. ${String(file.path).split(/[\\/]/).pop()}`;
+    const path = document.createElement('div');
+    path.className = 'starter-path';
+    path.textContent = file.path;
+    const hint = document.createElement('small');
+    hint.textContent = `${LAYER_LABELS[file.layer] || file.layer || 'Unclassified'} · ${file.symbols_count || 0} symbols`;
+    card.append(title, path, hint);
+    card.addEventListener('click', () => {
+      document.getElementById('files-search').value = file.path;
+      document.getElementById('files-layer-filter').value = '';
+      document.getElementById('files-tier-filter').value = '';
+      filesActiveTagFilter = '';
+      filesPage = 0;
+      renderFiles();
+      document.getElementById('files-results').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+    starter.appendChild(card);
+  });
+  if (!ranked.length) starter.textContent = 'No eligible files were indexed.';
+
+  const counts = {};
+  allFiles.filter(isSourceFile).forEach(file => { const layer = file.layer || 'core'; counts[layer] = (counts[layer] || 0) + 1; });
+  const descriptions = {
+    core:'Central logic', api:'Routes and interfaces', data_model:'Data shapes', service:'Application logic',
+    middleware:'Request processing', ui:'Presentation', cli:'Commands', infra:'Configuration', util:'Shared helpers', test:'Checks and fixtures'
+  };
+  const grid = document.getElementById('layer-overview');
+  Object.keys(counts).sort((a,b) => counts[b] - counts[a]).forEach(layer => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'layer-card';
+    card.dataset.layer = layer;
+    const count = document.createElement('span');
+    count.className = 'layer-count';
+    count.textContent = counts[layer];
+    const title = document.createElement('strong');
+    title.textContent = LAYER_LABELS[layer] || layer;
+    const hint = document.createElement('small');
+    hint.textContent = descriptions[layer] || 'Other files';
+    card.append(count, title, hint);
+    card.addEventListener('click', () => {
+      const select = document.getElementById('files-layer-filter');
+      select.value = select.value === layer ? '' : layer;
+      document.getElementById('files-search').value = '';
+      filesActiveTagFilter = '';
+      filesPage = 0;
+      renderFiles();
+      document.getElementById('files-results').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+    grid.appendChild(card);
+  });
+}
 
 function initFiles() {
-  filesSorted = (DATA.files || []).slice();
+  filesSorted = (DATA.files || []).slice().sort((a,b) =>
+    directoryOf(a.path).localeCompare(directoryOf(b.path)) ||
+    (b.rank_score || 0) - (a.rank_score || 0) || String(a.path).localeCompare(String(b.path)));
+  renderExplorerOverview();
   document.getElementById('files-search').addEventListener('input', () => { filesPage=0; renderFiles(); });
+  document.getElementById('files-source-only').addEventListener('change', () => { filesPage=0; renderFiles(); });
   document.getElementById('files-layer-filter').addEventListener('change', () => { filesPage=0; renderFiles(); });
   document.getElementById('files-tier-filter').addEventListener('change', () => { filesPage=0; renderFiles(); });
   document.getElementById('files-prev').addEventListener('click', () => { filesPage--; renderFiles(); });
   document.getElementById('files-next').addEventListener('click', () => { filesPage++; renderFiles(); });
+  document.getElementById('files-tbody').addEventListener('click', event => {
+    const button = event.target.closest('[data-inspect-file]');
+    if (button) openFileSymbols(button.dataset.inspectFile);
+    const group = event.target.closest('[data-file-group]');
+    if (group) toggleFileGroup(group.dataset.fileGroup);
+  });
   renderFiles();
+}
+
+function openFileSymbols(path) {
+  document.getElementById('sym-search').value = path;
+  document.getElementById('sym-kind-filter').value = '';
+  document.getElementById('sym-layer-filter').value = '';
+  symPage = 0;
+  activateSummaryTab('symbols');
+  document.getElementById('sym-results').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 function filesTagClick(el) {
@@ -491,6 +625,7 @@ function renderFiles() {
   const tierVal   = document.getElementById('files-tier-filter').value;
 
   let filtered = filesSorted.filter(f => {
+    if (document.getElementById('files-source-only').checked && !isSourceFile(f)) return false;
     if (layerVal && f.layer !== layerVal) return false;
     if (tierVal && !(f.ranking_tier || '').startsWith(tierVal)) return false;
     if (filesActiveTagFilter && !(f.tags || []).includes(filesActiveTagFilter)) return false;
@@ -512,21 +647,19 @@ function renderFiles() {
 
   // Initialize group open state
   if (useGrouping) {
-    const layers = [...new Set(filtered.map(f => f.layer))];
-    layers.forEach(l => { if (filesGroupOpen[l] === undefined) filesGroupOpen[l] = true; });
+    const directories = [...new Set(filtered.map(f => directoryOf(f.path)))];
+    directories.forEach(dir => { if (filesGroupOpen[dir] === undefined) filesGroupOpen[dir] = true; });
   }
 
   let html = '';
   if (useGrouping) {
-    // Group by layer
+    // Keep nearby source files together in the unfiltered view.
     const groups = {};
-    pageRows.forEach(f => { (groups[f.layer] = groups[f.layer] || []).push(f); });
-    for (const [layer, rows] of Object.entries(groups)) {
-      const layerLabel = LAYER_LABELS[layer] || layer;
-      const isOpen = filesGroupOpen[layer] !== false;
+    pageRows.forEach(f => { const dir = directoryOf(f.path); (groups[dir] = groups[dir] || []).push(f); });
+    for (const [dir, rows] of Object.entries(groups)) {
+      const isOpen = filesGroupOpen[dir] !== false;
       const chevron = `<span class="group-chevron${isOpen ? '' : ' collapsed'}">▼</span>`;
-      html += `<tr class="group-header-row" onclick="toggleFileGroup('${layer}')">
-        <td colspan="7">${chevron}${escHtml(layerLabel)} <span style="opacity:0.6;font-weight:400;">(${rows.length} files)</span></td></tr>`;
+      html += `<tr class="group-header-row"><td colspan="7"><button type="button" data-file-group="${escHtml(dir)}" aria-expanded="${isOpen}">${chevron}${escHtml(dir)} <span style="opacity:0.6;font-weight:400;">(${rows.length} on this page)</span></button></td></tr>`;
       if (isOpen) {
         rows.forEach(f => { html += filesRow(f); });
       }
@@ -535,10 +668,12 @@ function renderFiles() {
     pageRows.forEach(f => { html += filesRow(f); });
   }
 
-  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">No files match the current filters.</td></tr>';
+  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">No files match. Clear the filters or include non-source files.</td></tr>';
 
   const pi = document.getElementById('files-page-info');
-  pi.textContent = `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}`;
+  pi.textContent = totalRows ? `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}` : '0 files';
+  document.getElementById('files-results').textContent = `${totalRows} matching ${totalRows === 1 ? 'file' : 'files'} · ${document.getElementById('files-source-only').checked ? 'Source files' : 'All files'} · Select a file to inspect its symbols`;
+  document.querySelectorAll('.layer-card').forEach(card => card.classList.toggle('active', card.dataset.layer === layerVal));
   document.getElementById('files-prev').disabled = filesPage <= 0;
   document.getElementById('files-next').disabled = filesPage >= totalPages - 1;
 }
@@ -551,7 +686,7 @@ function filesRow(f) {
   const cxHtml = `<span class="${cxClass(cx)}">${cx}</span>`;
   const tags = tagPills(f.tags, 4, 'filesTagClick');
   return `<tr>
-    <td class="path-cell" title="${escHtml(f.path)}">${githubLink(f.path)}</td>
+    <td class="path-cell" title="${escHtml(f.path)}">${githubLink(f.path)}<br><button type="button" class="file-action" data-inspect-file="${escHtml(f.path)}">Inspect symbols →</button></td>
     <td>${lbadge}</td>
     <td>${tbadge}</td>
     <td style="color:var(--text-secondary);font-size:0.82rem;">${f.in_degree||0} / ${f.out_degree||0}</td>
@@ -565,27 +700,32 @@ function filesRow(f) {
    SYMBOLS TAB
    ───────────────────────────────────────────────────────── */
 let symPage = 0;
-let symGroupMode = 'layer'; // 'layer' | 'kind'
+let symGroupMode = 'file'; // 'file' | 'layer' | 'kind'
 let symGroupOpen = {};
 
 function initSymbols() {
   document.getElementById('sym-search').addEventListener('input', () => { symPage=0; renderSymbols(); });
   document.getElementById('sym-kind-filter').addEventListener('change', () => { symPage=0; renderSymbols(); });
   document.getElementById('sym-layer-filter').addEventListener('change', () => { symPage=0; renderSymbols(); });
-  document.getElementById('sym-group-layer').addEventListener('click', () => {
-    symGroupMode = 'layer'; symGroupOpen = {};
-    document.getElementById('sym-group-layer').classList.add('active');
-    document.getElementById('sym-group-kind').classList.remove('active');
-    symPage=0; renderSymbols();
+  ['file','layer','kind'].forEach(mode => {
+    document.getElementById('sym-group-' + mode).addEventListener('click', () => {
+      symGroupMode = mode; symGroupOpen = {}; symPage = 0;
+      ['file','layer','kind'].forEach(name =>
+        document.getElementById('sym-group-' + name).classList.toggle('active', name === mode));
+      renderSymbols();
+    });
   });
-  document.getElementById('sym-group-kind').addEventListener('click', () => {
-    symGroupMode = 'kind'; symGroupOpen = {};
-    document.getElementById('sym-group-kind').classList.add('active');
-    document.getElementById('sym-group-layer').classList.remove('active');
-    symPage=0; renderSymbols();
+  document.getElementById('sym-clear-file').addEventListener('click', () => {
+    document.getElementById('sym-search').value = '';
+    symPage = 0;
+    renderSymbols();
   });
   document.getElementById('sym-prev').addEventListener('click', () => { symPage--; renderSymbols(); });
   document.getElementById('sym-next').addEventListener('click', () => { symPage++; renderSymbols(); });
+  document.getElementById('sym-tbody').addEventListener('click', event => {
+    const group = event.target.closest('[data-symbol-group]');
+    if (group) toggleSymGroup(group.dataset.symbolGroup);
+  });
   renderSymbols();
 }
 
@@ -608,6 +748,18 @@ function renderSymbols() {
     }
     return true;
   });
+  const fileRank = new Map((DATA.files || []).map(f => [f.path, Number(f.rank || 9999)]));
+  filtered.sort((a,b) => {
+    const groupA = symGroupMode === 'file' ? a.file : a[symGroupMode];
+    const groupB = symGroupMode === 'file' ? b.file : b[symGroupMode];
+    if (symGroupMode === 'file') {
+      const rankDelta = (fileRank.get(groupA) || 9999) - (fileRank.get(groupB) || 9999);
+      if (rankDelta) return rankDelta;
+    }
+    return String(groupA || '').localeCompare(String(groupB || '')) ||
+      String(a.file || '').localeCompare(String(b.file || '')) ||
+      (a.line || 0) - (b.line || 0);
+  });
 
   const tbody = document.getElementById('sym-tbody');
   const totalRows = filtered.length;
@@ -617,7 +769,7 @@ function renderSymbols() {
   const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
   // Initialize group open state
-  const groupKey = symGroupMode === 'layer' ? 'layer' : 'kind';
+  const groupKey = symGroupMode;
   const groupKeys = [...new Set(filtered.map(s => s[groupKey]))];
   groupKeys.forEach(k => { if (symGroupOpen[k] === undefined) symGroupOpen[k] = true; });
 
@@ -626,22 +778,23 @@ function renderSymbols() {
   const groups = {};
   pageRows.forEach(s => { (groups[s[groupKey]] = groups[s[groupKey]] || []).push(s); });
   for (const [key, rows] of Object.entries(groups)) {
-    const label = symGroupMode === 'layer'
-      ? (LAYER_LABELS[key] || key)
-      : (KIND_LABEL[key] || key);
+    const label = symGroupMode === 'layer' ? (LAYER_LABELS[key] || key)
+      : symGroupMode === 'kind' ? (KIND_LABEL[key] || key) : key;
     const isOpen = symGroupOpen[key] !== false;
     const chevron = `<span class="group-chevron${isOpen ? '' : ' collapsed'}">▼</span>`;
-    html += `<tr class="group-header-row" onclick="toggleSymGroup('${escHtml(key)}')">
-      <td colspan="7">${chevron}${escHtml(label)} <span style="opacity:0.6;font-weight:400;">(${rows.length})</span></td></tr>`;
+    html += `<tr class="group-header-row"><td colspan="7"><button type="button" data-symbol-group="${escHtml(key)}" aria-expanded="${isOpen}">${chevron}${escHtml(label)} <span style="opacity:0.6;font-weight:400;">(${rows.length} on this page)</span></button></td></tr>`;
     if (isOpen) {
       rows.forEach(s => { html += symRow(s); });
     }
   }
 
-  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">No symbols match the current filters.</td></tr>';
+  const focusedFile = (DATA.files || []).some(f => String(f.path).toLowerCase() === searchVal);
+  tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">${focusedFile ? 'No functions or classes were extracted from this file. Clear file focus to browse other symbols.' : 'No symbols match the current filters.'}</td></tr>`;
 
   const pi = document.getElementById('sym-page-info');
-  pi.textContent = `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}`;
+  pi.textContent = totalRows ? `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}` : '0 symbols';
+  document.getElementById('sym-results').textContent = `${totalRows} matching ${totalRows === 1 ? 'symbol' : 'symbols'} · Grouped by ${symGroupMode}`;
+  document.getElementById('sym-clear-file').style.display = focusedFile ? '' : 'none';
   document.getElementById('sym-prev').disabled = symPage <= 0;
   document.getElementById('sym-next').disabled = symPage >= totalPages - 1;
 }
@@ -653,13 +806,12 @@ function symRow(s) {
   const kbadge = badge(KIND_BADGE[kind]   || 'badge-function', KIND_LABEL[kind] || kind);
   const cx = s.complexity || 1;
   const cxHtml = `<span class="${cxClass(cx)}">${cx}</span>`;
-  const fileName = (s.file || '').split('/').pop() || s.file || '';
   const tags = (s.tags || []).slice(0,3).map(t => `<span class="tag-pill" style="pointer-events:none;">${escHtml(t)}</span>`).join(' ');
   return `<tr>
     <td style="font-weight:600;color:#ffffff;">${escHtml(s.name)}</td>
     <td>${kbadge}</td>
     <td>${lbadge}</td>
-    <td class="path-cell" title="${escHtml(s.file||'')}">${escHtml(fileName)}</td>
+    <td class="path-cell" title="${escHtml(s.file||'')}">${githubLink(s.file || '', s.line)}</td>
     <td style="color:var(--text-secondary);">${s.line||''}</td>
     <td>${cxHtml}</td>
     <td style="display:flex;flex-wrap:wrap;gap:3px;padding:0.35rem 0.95rem;">${tags}</td>
@@ -667,22 +819,31 @@ function symRow(s) {
 }
 
 /* ── Tab switching ─────────────────────────────────────── */
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-    btn.classList.add('active');
-    const section = document.getElementById('tab-' + tab);
-    if (section) section.classList.add('active');
-    if (tab === 'files')   renderFiles();
-    if (tab === 'symbols') renderSymbols();
+function activateSummaryTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.tab === tab);
+    button.setAttribute('aria-selected', button.dataset.tab === tab ? 'true' : 'false');
   });
-});
+  document.querySelectorAll('.tab-section').forEach(section =>
+    section.classList.toggle('active', section.id === 'tab-' + tab));
+  if (tab === 'files') renderFiles();
+  if (tab === 'symbols') renderSymbols();
+}
+document.querySelectorAll('.tab-btn').forEach(btn =>
+  btn.addEventListener('click', () => activateSummaryTab(btn.dataset.tab)));
 
 /* ── Boot ──────────────────────────────────────────────── */
 initFiles();
 initSymbols();
+const explorerParams = new URLSearchParams(window.location.search);
+const focusedFile = explorerParams.get('file');
+if (explorerParams.get('tab') === 'symbols') {
+  if (focusedFile && (DATA.files || []).some(file => file.path === focusedFile)) {
+    openFileSymbols(focusedFile);
+  } else {
+    activateSummaryTab('symbols');
+  }
+}
 </script>
 </body>
 </html>
