@@ -130,7 +130,7 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
     return stats
 
 
-def collect_git_stats(root: Path) -> list[ContributorStat]:
+def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[ContributorStat]:
     """Return per-author commit and line-change stats for the repo at *root*.
 
     Prefer GitHub's contributor identities and commit counts for a repository
@@ -150,13 +150,16 @@ def collect_git_stats(root: Path) -> list[ContributorStat]:
         # The API resolves renamed author emails to real GitHub accounts and
         # includes bots. A shallow local log cannot provide an accurate list.
         slug = _detect_github_slug(root)
-        if slug:
+        if slug and not prefer_local:
             github_stats = _fetch_github_api_contributors(*slug)
             if github_stats:
                 return github_stats
         try:
             with repo:
-                log_output: str = repo.git.log("--numstat", "--format=%ae|%an")
+                with repo.git.custom_environment(
+                    GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_OPTIONAL_LOCKS="0",
+                ):
+                    log_output: str = repo.git.log("--no-ext-diff", "--numstat", "--format=%ae|%an")
                 current_author: str | None = None
                 current_name: str = ""
 
