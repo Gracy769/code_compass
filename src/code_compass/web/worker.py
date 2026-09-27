@@ -85,8 +85,8 @@ def main() -> None:
                 "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {credential}",
             })
         # Keep the full commit graph for an accurate fallback when GitHub's
-        # contributor API is unavailable; blob filtering reduces transfer.
-        Repo.clone_from(args.source, repo_dir, multi_options=["--filter=blob:none"], env=clone_env)
+        # contributor API is unavailable.
+        Repo.clone_from(args.source, repo_dir, env=clone_env)
         target = repo_dir
         slug = detect_github_slug(repo_dir)
         repo_ref = Repo(repo_dir).head.commit.hexsha
