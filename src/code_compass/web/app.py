@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from code_compass.analysis import analyze as run_analysis
+from code_compass.cache_manager import compute_hash, load_cache, save_cache
 from code_compass.discovery import discover
 from code_compass.renderer import render
 from code_compass.web.security import (
@@ -658,6 +659,7 @@ LANDING_HTML = """<!DOCTYPE html>
     <div class="nav-links">
       <a href="https://github.com/Gracy769/code-compass-app" target="_blank">Docs</a>
       <a href="https://github.com/Gracy769/code-compass-app" target="_blank">GitHub</a>
+      <button id="githubSignInBtn" onclick="signInWithGitHub()" style="display:none;background:transparent;border:1px solid rgba(0,180,216,0.4);color:#38bdf8;padding:0.4rem 1rem;border-radius:6px;font-size:0.85rem;cursor:pointer;">Sign in with GitHub</button>
     </div>
   </nav>
 
@@ -805,6 +807,15 @@ LANDING_HTML = """<!DOCTYPE html>
       </div>
     </div>
   </main>
+
+  <!-- Repo Picker Modal (Supabase OAuth) -->
+  <div class="modal-backdrop" id="repoPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;">
+    <div class="modal-box" style="max-height:60vh;overflow-y:auto;">
+      <div class="modal-title">Your GitHub Repositories</div>
+      <div id="repoPickerList" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('repoPickerModal').style.display='none'">Close</button></div>
+    </div>
+  </div>
 
   <!-- GitHub Token Modal -->
   <div class="modal-backdrop" id="tokenModal">
@@ -1047,6 +1058,38 @@ LANDING_HTML = """<!DOCTYPE html>
       document.getElementById('analyzeBtn').disabled = false;
       document.getElementById('analyzeBtn').style.opacity = '1';
     }
+
+    // Supabase OAuth & Repo Picker
+    async function signInWithGitHub() {
+      const cfg = await fetch('/api/supabase-config').then(r => r.json()).catch(() => null);
+      if (!cfg || !cfg.enabled) { openTokenModal(); return; }
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      const sb = createClient(cfg.supabase_url, cfg.anon_key);
+      await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin + '/auth/callback' } });
+    }
+
+    async function fetchUserRepos() {
+      const data = await fetch('/api/repos').then(r => r.json()).catch(() => ({ repos: [], authenticated: false }));
+      if (!data.authenticated || !data.repos.length) { openTokenModal(); return; }
+      const list = document.getElementById('repoPickerList');
+      list.innerHTML = '';
+      data.repos.forEach(r => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-secondary';
+        btn.style.cssText = 'width:100%;text-align:left;padding:0.6rem 1rem;';
+        btn.textContent = r.full_name;
+        btn.onclick = () => { document.getElementById('repoUrlInput').value = r.url; document.getElementById('repoPickerModal').style.display = 'none'; startAnalysis(); };
+        list.appendChild(btn);
+      });
+      document.getElementById('repoPickerModal').style.display = 'flex';
+    }
+
+    (async () => {
+      try {
+        const cfg = await fetch('/api/supabase-config').then(r => r.json());
+        if (cfg && cfg.enabled) document.getElementById('githubSignInBtn').style.display = '';
+      } catch (_) {}
+    })();
   </script>
 </body>
 </html>
@@ -1072,6 +1115,61 @@ async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "code-compass"}
 
 
+@app.get("/api/supabase-config")
+async def supabase_config() -> dict:
+    url = os.environ.get("SUPABASE_URL", "")
+    anon_key = os.environ.get("SUPABASE_ANON_KEY", "")
+    return {"enabled": bool(url and anon_key), "supabase_url": url if url else "", "anon_key": anon_key if anon_key else ""}
+
+
+from fastapi.responses import RedirectResponse  # noqa: E402
+
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    """Exchange Supabase OAuth code for a session and redirect to homepage."""
+    code = request.query_params.get("code")
+    if not code:
+        return RedirectResponse(url="/?auth_error=1")
+    try:
+        from code_compass.cache_manager import _get_client
+        client = _get_client()
+        if client is None:
+            return RedirectResponse(url="/?auth_error=1")
+        session_data = client.auth.exchange_code_for_session({"auth_code": code})
+        access_token = session_data.session.access_token if session_data and session_data.session else None
+        if not access_token:
+            return RedirectResponse(url="/?auth_error=1")
+        response = RedirectResponse(url="/")
+        response.set_cookie("sb_session", access_token, httponly=True, samesite="strict", max_age=3600)
+        return response
+    except Exception:
+        return RedirectResponse(url="/?auth_error=1")
+
+
+@app.get("/api/repos")
+async def list_repos(request: Request) -> dict:
+    """Return the authenticated user's GitHub repos via Supabase OAuth token."""
+    token = request.cookies.get("sb_session", "")
+    if not token:
+        return {"repos": [], "authenticated": False}
+    try:
+        import json as _json
+        import urllib.request
+        req2 = urllib.request.Request(
+            "https://api.github.com/user/repos?per_page=30&sort=updated",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+        )
+        with urllib.request.urlopen(req2, timeout=5) as resp:
+            repos = _json.loads(resp.read())
+        return {
+            "repos": [{"name": r["name"], "full_name": r["full_name"], "url": r["html_url"]} for r in repos if isinstance(r, dict)],
+            "authenticated": True,
+        }
+    except Exception:
+        return {"repos": [], "authenticated": False}
+
+
 @app.post("/api/analyze-git")
 async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str, str]:
     """Clone a public/private Git repository and run Code Compass analysis."""
@@ -1079,6 +1177,26 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
         repo_url = canonical_github_url(req.url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    hash_str = compute_hash(repo_url)
+    cached = load_cache(hash_str, ttl_days=7)
+    if cached is not None:
+        run_id = f"run_{uuid.uuid4().hex[:12]}"
+        work_dir = STORAGE_DIR / run_id
+        work_dir.mkdir(parents=True, mode=0o700)
+        session = request.cookies.get(SESSION_COOKIE, "")
+        (work_dir / "owner").write_text(session, encoding="ascii")
+        try:
+            render(cached, work_dir / "dashboard.html", repo_name=repo_url.rstrip(".git").split("/")[-1])
+            return {
+                "success": "true",
+                "analysis_id": run_id,
+                "dashboard_url": f"/dashboard/{run_id}",
+                "summary_url": f"/summary/{run_id}",
+            }
+        except Exception:
+            shutil.rmtree(work_dir, ignore_errors=True)  # fall through to full analysis
+
     run_id, work_dir = _new_run(request)
 
     try:
@@ -1088,6 +1206,17 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
         if isinstance(exc, HTTPException):
             raise
         raise HTTPException(status_code=500, detail="Repository analysis failed or timed out.") from exc
+
+    try:
+        import json as _json
+        from code_compass.cache_manager import _dict_to_analysis_result
+        _aj = work_dir / "analysis.json"
+        if _aj.is_file():
+            _data = _json.loads(_aj.read_text(encoding="utf-8"))
+            _result = _dict_to_analysis_result(_data)
+            save_cache(hash_str, _result, ttl_days=7, repo_name=repo_url.rstrip(".git").split("/")[-1])
+    except Exception:
+        pass
 
     return {
         "success": "true",
