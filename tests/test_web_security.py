@@ -44,6 +44,19 @@ def test_zip_expansion_limit(tmp_path, monkeypatch):
         extract_zip_safely(archive, tmp_path / "repo")
 
 
+@pytest.mark.parametrize("name,body", [
+    ("repo/.git", "gitdir: C:/elsewhere"),
+    ("repo/.git/objects/info/alternates", "C:/elsewhere"),
+    ("repo/.git/config", '[include]\npath = C:/elsewhere/config\n'),
+])
+def test_zip_rejects_external_git_metadata(tmp_path, name, body):
+    archive = tmp_path / "bad-git.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr(name, body)
+    with pytest.raises(ValueError, match="unsupported Git"):
+        extract_zip_safely(archive, tmp_path / "repo")
+
+
 def test_runs_are_private_and_unknown_ids_do_not_redirect(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
     with TestClient(web_module.app, base_url="https://testserver") as owner:

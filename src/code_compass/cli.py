@@ -59,7 +59,7 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     )
 
     click.echo("[code-compass] Analysing symbols…")
-    result = run_analysis(manifest, strict=strict, semantic=semantic)
+    result = run_analysis(manifest, strict=strict, semantic=semantic, prefer_local_contributors=True)
 
     sym_count = len(result.symbols)
     edge_count = len(result.call_edges)

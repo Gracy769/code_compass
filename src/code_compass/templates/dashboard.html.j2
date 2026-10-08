@@ -1132,11 +1132,11 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.35rem; margin-bottom:0.25rem;">AI System Prompt</h2>
-          <p style="color:var(--text-secondary); font-size:0.85rem;">Exhaustive LLM context for ChatGPT, Claude &amp; Gemini — copy directly into your AI chat session</p>
+          <p style="color:var(--text-secondary); font-size:0.85rem;">Repository-specific context from the static scan. Verify paths and behavior before relying on it.</p>
         </div>
         <button class="action-btn action-btn-primary" id="btn-copy-prompt">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          Copy Full AI Prompt
+          Copy Repository Context
         </button>
       </div>
       <pre id="ai-prompt-text" style="background:#080d1a; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1.1rem; font-size:0.8rem; color:#cbd5e1; max-height:72vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word;"></pre>
@@ -1216,6 +1216,7 @@
         <input type="text" id="contrib-search" placeholder="Search contributor handle…" style="padding:0.45rem 0.85rem; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:#fff;" />
       </div>
 
+      <p id="contrib-empty" role="status" style="display:none; color:var(--text-secondary); padding:1.5rem 0;"></p>
       <table class="data-table" id="contrib-table">
         <thead>
           <tr>
@@ -1478,7 +1479,7 @@
       { label: 'Files Indexed',   value: totalFiles,          sub: 'eligible repository files' },
       { label: 'Symbols Found',   value: totalSymbols,        sub: 'functions & classes' },
       { label: 'Call Edges',      value: callEdges.length,    sub: 'detected call expressions' },
-      { label: 'Contributors',    value: contributors.length, sub: repoStats.contributor_history === 'shallow clone' ? 'shallow clone history' : 'available history' },
+      { label: 'Contributors',    value: contributors.length, sub: repoStats.contributor_history || 'Git history unavailable' },
       { label: 'Top Language',    value: topLang.toUpperCase(),sub: 'dominant ecosystem' },
       { label: 'Top Contributor', value: topContrib,          sub: 'most active committer' },
     ];
@@ -1678,7 +1679,7 @@
     if (copyBtn) {
       copyBtn.addEventListener('click', function() {
         navigator.clipboard.writeText(aiPrompt || '');
-        showToast('AI System Prompt copied to clipboard!');
+        showToast('Repository context copied to clipboard!');
       });
     }
   }
@@ -1837,11 +1838,24 @@
 
     var tbody = document.getElementById('contrib-tbody');
     var searchEl = document.getElementById('contrib-search');
+    var emptyEl = document.getElementById('contrib-empty');
+    var tableEl = document.getElementById('contrib-table');
     var totalCommits = contributors.reduce(function(sum, c) { return sum + c.commits; }, 0) || 1;
     document.getElementById('contrib-source').textContent = contributors.length
       ? 'Source: ' + (repoStats.contributor_history || 'available Git history') + ' · Up to 100 contributors' +
         (repoStats.contributor_history === 'GitHub API' ? ' · Line totals use a separately refreshed GitHub snapshot' : '')
-      : 'Contributor history is unavailable for this source.';
+      : repoStats.contributor_history || 'Contributor history is unavailable for this source.';
+    if (!contributors.length) {
+      tableEl.style.display = 'none';
+      searchEl.style.display = 'none';
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = repoStats.contributor_history === 'Local folder no contributors'
+        ? 'Local folder — no contributors. Upload a ZIP that includes an initialized .git directory to show real commit history.'
+        : repoStats.contributor_history === 'Git repository with no commits'
+          ? 'This Git repository has no commits yet.'
+          : 'No contributor commits were found.';
+      return;
+    }
 
     function renderList(list) {
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);

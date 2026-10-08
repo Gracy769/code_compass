@@ -15,7 +15,7 @@ from code_compass.analysis import analyze
 from code_compass.analysis.git_stats import detect_github_slug
 from code_compass.analysis.models import AnalysisResult, CallEdge, ContributorStat, FileMetadata, SemanticFinding, SymbolInfo
 from code_compass.analysis.semantic_auditor import audit_with_provider
-from code_compass.analysis.tagger import generate_ai_system_prompt
+from code_compass.analysis.prompt import generate_ai_system_prompt
 from code_compass.discovery import discover
 from code_compass.renderer import render
 from code_compass.web.security import extract_zip_safely
@@ -57,12 +57,8 @@ def main() -> None:
         result.repo_stats["semantic_scope"] = "up to 12 ranked files"
         result.repo_stats["semantic_model"] = args.model
         result.ai_system_prompt = generate_ai_system_prompt(
-            repo_name=meta["render"]["repo_name"], total_files=len(result.files),
-            symbols=[{"name": s.name, "file": s.file} for s in result.symbols],
-            ranked_files=[dataclasses.asdict(f) for f in sorted(result.files, key=lambda f: f.rank_score, reverse=True)],
-            contributors=[{"author": c.author, "commits": c.commits} for c in result.contributors],
-            semantic_findings=[dataclasses.asdict(f) for f in result.semantic_findings],
-            semantic_status="available",
+            result, meta["render"]["repo_name"],
+            project_description=str(result.repo_stats.get("project_description", "")),
         )
         temp = render(result, work_dir / "dashboard.next.html", **meta["render"])
         temp.write_text(
@@ -98,19 +94,33 @@ def main() -> None:
     else:
         extract_zip_safely(Path(args.source), repo_dir)
         candidates = [p for p in repo_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
-        target = candidates[0] if len(candidates) == 1 else repo_dir
+        target = repo_dir if (repo_dir / ".git").is_dir() else (
+            candidates[0] if len(candidates) == 1 else repo_dir
+        )
         slug = ""
         repo_ref = ""
         repo_name = args.name or target.name
 
     started = time.perf_counter()
     manifest = discover(target)
-    result = analyze(manifest, strict=args.strict, semantic=args.semantic)
+    result = analyze(manifest, strict=args.strict, semantic=args.semantic,
+                     prefer_local_contributors=args.kind == "zip")
     result.repo_stats["analysis_seconds"] = round(time.perf_counter() - started, 2)
+    result.ai_system_prompt = generate_ai_system_prompt(
+        result, repo_name,
+        project_description=str(result.repo_stats.get("project_description", "")),
+    )
     if args.kind == "git":
         result.repo_stats["contributor_history"] = (
             "GitHub API" if result.contributors and result.contributors[0].github_handle
             else "full git history"
+        )
+    else:
+        has_git_history = (target / ".git").is_dir()
+        result.repo_stats["contributor_history"] = (
+            "Local Git history" if has_git_history and result.contributors
+            else "Git repository with no commits" if has_git_history
+            else "Local folder no contributors"
         )
     render_args = {"repo_name": repo_name, "github_slug": slug, "github_ref": repo_ref}
     (work_dir / "analysis-meta.json").write_text(json.dumps({
