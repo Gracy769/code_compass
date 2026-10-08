@@ -6,7 +6,7 @@
   <title>Code Compass — {{ repo_name }}</title>
   <style>
     /* ============================================================
-       CODE COMPASS — ADVANCED GLASS/CLAY ARCHITECTURE DESIGN SYSTEM
+       CODE COMPASS — BASE LAYOUT AND COMPONENT STYLES
        ============================================================ */
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -858,6 +858,39 @@
       .bento-col-4, .bento-col-6, .bento-col-8, .bento-col-12 { grid-column: 1; }
       .cg-metrics { grid-template-columns:1fr; }
     }
+    {% include 'editorial-theme.css.j2' %}
+    /* Dashboard composition */
+    .hero-section { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 2.4rem; padding: 1.5rem 0 2.25rem; margin-bottom: .5rem; }
+    .hero-section::before { background: none; border: 0; }
+    .hero-left { padding: 1.4rem 0; gap: 1.25rem; justify-content: flex-start; }
+    .hero-headline { font-size: clamp(2.7rem, 4.1vw, 4.75rem); line-height: 1.05; overflow-wrap: anywhere; }
+    .hero-headline .hl-cyan { color: #dfa181; }
+    .hero-subtext { color: #c5bcb0; font-size: 1.02rem; max-width: 33rem; }
+    .hero-explore-note { background: transparent; border: 0; border-left: 2px solid #c96f4d; border-radius: 0; padding: .25rem 0 .25rem .8rem; color: #d5c5b8; }
+    .hero-right { padding: 0; gap: .85rem; }
+    .hero-status-card, .hero-canvas-wrap, .hero-metric-card { background: #242320; border: 1px solid #48443e; border-radius: 10px; backdrop-filter: none; }
+    .hero-status-title { color: #e9b38f; }
+    .hero-complete-icon { color: #b4c9a6; background: #303b31; border-color: #60765e; box-shadow: none; }
+    .hero-progress-fill { background: #b4c9a6; }
+    .hero-progress-pct { color: #b4c9a6; }
+    .hero-canvas-wrap { min-height: 290px; }
+    .hero-map-overlay { background: #25221e; border-color: #5d5147; backdrop-filter: none; }
+    .hero-metric-icon, .hero-metric-val em { color: #dda07d; }
+    .hero-metric-card:hover { border-color: #8d654f; }
+    .hero-metric-val { font-size: 1.2rem; }
+    .hero-metrics { gap: .75rem; }
+    .cg-layout { gap: 1.1rem; }
+    .cg-metric { padding: 1rem 1.25rem; }
+    .cg-panel { padding: 1.3rem; }
+    .cg-intro h2 { font-size: 2rem; }
+    #contrib-table { display: block; overflow-x: auto; }
+    #audit-form { background: #1f1e1b; border: 1px solid #48443e; border-radius: 10px; padding: 1.25rem; }
+    #audit-form label { color: #d9cfc4; font-size: .8rem; font-weight: 600; }
+    #audit-form input, #audit-form select { margin-top: .45rem; }
+    #audit-submit { background: #c96f4d; border-color: #c96f4d; color: #171715; font-weight: 700; }
+    #semantic-empty { background: #1b1a18; border: 1px dashed #5e554a; border-radius: 8px; }
+    @media (max-width: 1000px) { .hero-section { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .hero-section { padding: .5rem 0 1.25rem; gap: 1rem; } .hero-headline { font-size: clamp(2.2rem, 8vw, 3rem); } .hero-metrics { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -989,9 +1022,9 @@
           <div class="hero-map-overlay">
             <div class="hero-map-title">Codebase Map</div>
             <div class="hero-legend">
-              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#38bdf8;"></span> Module</div>
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#d98763;"></span> Module</div>
               <div class="hero-legend-item"><span class="hero-legend-line"></span> Dependency</div>
-              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Top ranked file</div>
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#d6b375;"></span> Top ranked file</div>
             </div>
           </div>
         </div>
@@ -1057,11 +1090,11 @@
         <div style="display:flex; flex-direction:column; gap:0.55rem; font-size:0.82rem;">
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Modularity Index</span>
-            <span style="color:#86efac; font-weight:600;">Not measured</span>
+            <span style="color:#b4c9a6; font-weight:600;">Not measured</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Cyclomatic Complexity</span>
-            <span style="color:#93c5fd; font-weight:600;" id="overview-avg-complexity">—</span>
+            <span style="color:#dfa181; font-weight:600;" id="overview-avg-complexity">—</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-secondary);">Dead Code Ratio</span>
@@ -1556,8 +1589,8 @@
         var avgCx = layerCxN[k] ? (layerCxSum[k] / layerCxN[k]).toFixed(1) : '–';
         tr.innerHTML =
           '<td style="padding:0.35rem 0.6rem; color:#e2e8f0;">' + (layerLabels[k] || k) + '</td>' +
-          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#93c5fd;">' + (layerFileCount[k] || 0) + '</td>' +
-          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#c4b5fd;">' + (layerSymCount[k] || 0) + '</td>' +
+          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#dfa181;">' + (layerFileCount[k] || 0) + '</td>' +
+          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#b4c9a6;">' + (layerSymCount[k] || 0) + '</td>' +
           '<td style="padding:0.35rem 0.6rem; text-align:right;">' + avgCx + '</td>';
         matrixTbody.appendChild(tr);
       });
@@ -1565,9 +1598,9 @@
     var metaEl = document.getElementById('arch-matrix-meta');
     if (metaEl) {
       metaEl.innerHTML =
-        '<span>Dominant ecosystem: <strong style="color:#93c5fd;">' + topLang.toUpperCase() + '</strong></span>' +
-        '<span>Symbol density: <strong style="color:#c4b5fd;">' + (totalFiles ? (totalSymbols / totalFiles).toFixed(1) : '0') + ' sym/file</strong></span>' +
-        '<span>Total layers: <strong style="color:#6ee7b7;">' + Object.keys(layerFileCount).length + '</strong></span>';
+        '<span>Dominant ecosystem: <strong style="color:#dfa181;">' + topLang.toUpperCase() + '</strong></span>' +
+        '<span>Symbol density: <strong style="color:#b4c9a6;">' + (totalFiles ? (totalSymbols / totalFiles).toFixed(1) : '0') + ' sym/file</strong></span>' +
+        '<span>Total layers: <strong style="color:#e3c99d;">' + Object.keys(layerFileCount).length + '</strong></span>';
     }
   }());
 
@@ -1600,8 +1633,8 @@
       return {
         path: file.path, label: file.path.split(/[\\/]/).pop(),
         x: 0.5 + 0.34 * Math.cos(angle), y: 0.5 + 0.30 * Math.sin(angle),
-        r: i === 0 ? 9 : 6, color: i === 0 ? '#fbbf24' : '#38bdf8',
-        glow: i === 0 ? 'rgba(251,191,36,0.5)' : 'rgba(56,189,248,0.45)'
+        r: i === 0 ? 9 : 6, color: i === 0 ? '#d6b375' : '#d98763',
+        glow: i === 0 ? 'rgba(214,179,117,0.22)' : 'rgba(217,135,99,0.2)'
       };
     });
     var symbolFile = {};
@@ -1634,11 +1667,11 @@
 
       // Subtle deep background glow layers
       var bg1 = ctx.createRadialGradient(W*0.3, H*0.4, 0, W*0.3, H*0.4, W*0.5);
-      bg1.addColorStop(0, 'rgba(0,100,180,0.08)');
+      bg1.addColorStop(0, 'rgba(201,111,77,0.055)');
       bg1.addColorStop(1, 'transparent');
       ctx.fillStyle = bg1; ctx.fillRect(0,0,W,H);
       var bg2 = ctx.createRadialGradient(W*0.75, H*0.6, 0, W*0.75, H*0.6, W*0.4);
-      bg2.addColorStop(0, 'rgba(0,180,216,0.06)');
+      bg2.addColorStop(0, 'rgba(169,193,161,0.045)');
       bg2.addColorStop(1, 'transparent');
       ctx.fillStyle = bg2; ctx.fillRect(0,0,W,H);
 
@@ -1652,8 +1685,8 @@
       edges.forEach(function(e) {
         var a = positions[e[0]], b = positions[e[1]];
         var grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-        grad.addColorStop(0, 'rgba(0,180,216,0.35)');
-        grad.addColorStop(1, 'rgba(56,189,248,0.20)');
+        grad.addColorStop(0, 'rgba(201,111,77,0.3)');
+        grad.addColorStop(1, 'rgba(169,193,161,0.16)');
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
@@ -1684,7 +1717,7 @@
 
         // Label
         ctx.font = '600 ' + (r > 8 ? '11' : '9') + 'px system-ui,sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.fillStyle = 'rgba(242,238,231,0.88)';
         ctx.textAlign = 'center';
         ctx.fillText(h.label, p.x, p.y + r + 13);
       });
@@ -1788,7 +1821,7 @@
         shareTd.innerHTML =
           '<div style="display:flex; align-items:center; gap:0.6rem;">' +
             '<div style="flex:1; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">' +
-              '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg, #3b82d4, #8b5cf6); border-radius:4px;"></div>' +
+              '<div style="width:' + pct + '%; height:100%; background:#c96f4d; border-radius:4px;"></div>' +
             '</div>' +
             '<span style="font-size:0.75rem; color:var(--text-secondary); width:36px;">' + pctLabel + '</span>' +
           '</div>';
@@ -1880,7 +1913,7 @@
           var track = document.createElement('div');
           track.style.cssText = 'flex:1;height:8px;border-radius:8px;background:rgba(148,163,184,0.12);overflow:hidden;';
           var fill = document.createElement('div');
-          fill.style.cssText = 'height:100%;border-radius:8px;background:#38bdf8;width:' + Math.round(100 * target.count / targets[0].count) + '%;';
+          fill.style.cssText = 'height:100%;border-radius:8px;background:#c96f4d;width:' + Math.round(100 * target.count / targets[0].count) + '%;';
           track.appendChild(fill);
           row.append(name, track);
           chartEl.appendChild(row);
