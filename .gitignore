@@ -25,3 +25,5 @@ htmlcov/
 # Output artefacts
 compass-dashboard.html
 *-dashboard*.html
+*.log
+.benchmarks/
