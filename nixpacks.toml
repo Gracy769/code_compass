@@ -1,0 +1,9 @@
+# nixpacks.toml — Railway native build configuration
+[phases.setup]
+nixPkgs = ["git"]
+
+[phases.build]
+cmds = ["pip install -e ."]
+
+[start]
+cmd = "python server.py"
