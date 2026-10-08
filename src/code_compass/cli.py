@@ -31,7 +31,13 @@ def main() -> None:
     default=False,
     help="Enable dead-code detection (opt-in; may produce false positives on public APIs).",
 )
-def analyze(repo_path: str, output: str, strict: bool) -> None:
+@click.option(
+    "--semantic",
+    is_flag=True,
+    default=False,
+    help="Enable LLM-powered semantic audit on the top-5 most complex files (opt-in; requires token budget).",
+)
+def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     """Analyse REPO_PATH and emit a self-contained HTML dashboard."""
     repo = Path(repo_path)
     out = Path(output)
@@ -40,6 +46,8 @@ def analyze(repo_path: str, output: str, strict: bool) -> None:
     click.echo(f"[code-compass] Output: {out}")
     if strict:
         click.echo("[code-compass] Dead-code detection: enabled")
+    if semantic:
+        click.echo("[code-compass] Semantic audit: enabled (top-5 complex files)")
 
     manifest = discover(repo)
     total = len(manifest.files)
@@ -50,7 +58,7 @@ def analyze(repo_path: str, output: str, strict: bool) -> None:
     )
 
     click.echo("[code-compass] Analysing symbols…")
-    result = run_analysis(manifest, strict=strict)
+    result = run_analysis(manifest, strict=strict, semantic=semantic)
 
     sym_count = len(result.symbols)
     edge_count = len(result.call_edges)
@@ -68,6 +76,10 @@ def analyze(repo_path: str, output: str, strict: bool) -> None:
     if strict and result.dead_code:
         click.echo(
             f"[code-compass] Dead code candidates: {len(result.dead_code)} symbol(s)."
+        )
+    if semantic and result.semantic_findings:
+        click.echo(
+            f"[code-compass] Semantic findings: {len(result.semantic_findings)} issue(s) identified."
         )
 
     click.echo(f"[code-compass] Writing dashboard -> {out}")
