@@ -799,7 +799,6 @@ LANDING_HTML = """<!DOCTYPE html>
       CODE COMPASS
     </div>
     <div class="nav-links">
-      <a href="https://github.com/Gracy769/code-compass-app" target="_blank">Docs</a>
       <a href="https://github.com/Gracy769/code-compass-app" target="_blank">GitHub</a>
     </div>
   </nav>
