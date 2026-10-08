@@ -524,6 +524,13 @@ LANDING_HTML = """<!DOCTYPE html>
             </svg>
             Connect GitHub
           </button>
+
+          <a href="/dashboard/demo" class="btn btn-secondary" style="border-color: rgba(0, 180, 216, 0.4); color: var(--accent-sky);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            Instant Live Demo
+          </a>
         </div>
 
         <input type="file" id="zipFileInput" style="display:none" accept=".zip" onchange="uploadZip(event)">
@@ -934,21 +941,96 @@ async def analyze_zip_upload(file: UploadFile = File(...)) -> dict[str, str]:
     }
 
 
-@app.get("/dashboard/{analysis_id}", response_class=HTMLResponse)
-async def view_dashboard(analysis_id: str) -> HTMLResponse:
-    """Serve the generated dashboard for a specific analysis run."""
-    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", analysis_id)
+@app.on_event("startup")
+async def seed_demo_analysis() -> None:
+    """Pre-generate a live demo dashboard on startup so visitors can view it instantly."""
+    demo_dir = STORAGE_DIR / "demo"
+    if not (demo_dir / "dashboard.html").exists():
+        try:
+            demo_dir.mkdir(parents=True, exist_ok=True)
+            # Analyze local code-compass source as demo
+            local_src = Path(__file__).parent.parent
+            manifest = discover(local_src)
+            result = run_analysis(manifest, strict=True, semantic=False)
+            out_dashboard = demo_dir / "dashboard.html"
+            render(result, out_dashboard, repo_name="code-compass-core", github_slug="Gracy769/code-compass-app")
+            print("[code-compass] Seeded live demo dashboard at /dashboard/demo")
+        except Exception as err:
+            print(f"[code-compass] Demo seed note: {err}")
+
+
+@app.get("/dashboard/{analysis_id:path}", response_class=HTMLResponse)
+async def view_dashboard(analysis_id: str):
+    """Serve the generated dashboard for a specific analysis run with dynamic link rewriting."""
+    parts = analysis_id.strip("/").split("/")
+    actual_id = parts[0]
+
+    # Handle direct relative click: /dashboard/dashboard-summary.html
+    if "summary" in actual_id.lower():
+        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
+        target = recent[0].name if recent else "demo"
+        return RedirectResponse(url=f"/summary/{target}")
+
+    # Handle sub-path: /dashboard/run_xxx/dashboard-summary.html
+    if len(parts) > 1 and "summary" in parts[1].lower():
+        return RedirectResponse(url=f"/summary/{actual_id}")
+
+    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", actual_id)
     dash_path = STORAGE_DIR / clean_id / "dashboard.html"
+
     if not dash_path.exists():
-        raise HTTPException(status_code=404, detail="Dashboard not found or expired.")
-    return HTMLResponse(content=dash_path.read_text(encoding="utf-8"), status_code=200)
+        # Fall back to demo or most recent run
+        if (STORAGE_DIR / "demo" / "dashboard.html").exists():
+            return RedirectResponse(url="/dashboard/demo")
+        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
+        if recent and (recent[0] / "dashboard.html").exists():
+            return RedirectResponse(url=f"/dashboard/{recent[0].name}")
+        raise HTTPException(
+            status_code=404,
+            detail="Dashboard not found or expired. Please run a new analysis from the homepage.",
+        )
+
+    content = dash_path.read_text(encoding="utf-8")
+    # Dynamically rewrite relative summary links to FastAPI route
+    content = content.replace('href="dashboard-summary.html"', f'href="/summary/{clean_id}"')
+    content = re.sub(r'href="[^"]*-summary\.html"', f'href="/summary/{clean_id}"', content)
+    return HTMLResponse(content=content, status_code=200)
 
 
-@app.get("/summary/{analysis_id}", response_class=HTMLResponse)
-async def view_summary(analysis_id: str) -> HTMLResponse:
+@app.get("/summary/{analysis_id:path}", response_class=HTMLResponse)
+async def view_summary(analysis_id: str):
     """Serve the companion summary page for a specific analysis run."""
-    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", analysis_id)
+    parts = analysis_id.strip("/").split("/")
+    actual_id = parts[0]
+
+    # Handle direct relative click: /summary/dashboard.html
+    if "dashboard" in actual_id.lower():
+        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
+        target = recent[0].name if recent else "demo"
+        return RedirectResponse(url=f"/dashboard/{target}")
+
+    # Handle sub-path: /summary/run_xxx/dashboard.html
+    if len(parts) > 1 and "dashboard" in parts[1].lower():
+        return RedirectResponse(url=f"/dashboard/{actual_id}")
+
+    clean_id = re.sub(r"[^a-zA-Z0-9_-]", "", actual_id)
     summary_path = STORAGE_DIR / clean_id / "dashboard-summary.html"
+
     if not summary_path.exists():
-        raise HTTPException(status_code=404, detail="Summary not found or expired.")
-    return HTMLResponse(content=summary_path.read_text(encoding="utf-8"), status_code=200)
+        if (STORAGE_DIR / "demo" / "dashboard-summary.html").exists():
+            return RedirectResponse(url="/summary/demo")
+        recent = sorted(STORAGE_DIR.glob("run_*"), key=os.path.getmtime, reverse=True)
+        if recent and (recent[0] / "dashboard-summary.html").exists():
+            return RedirectResponse(url=f"/summary/{recent[0].name}")
+        raise HTTPException(
+            status_code=404,
+            detail="Summary not found or expired. Please run a new analysis from the homepage.",
+        )
+
+    content = summary_path.read_text(encoding="utf-8")
+    # Dynamically rewrite relative dashboard links to FastAPI route
+    content = content.replace('href="dashboard.html"', f'href="/dashboard/{clean_id}"')
+    content = content.replace('href="fastapi-dashboard.html"', f'href="/dashboard/{clean_id}"')
+    content = re.sub(r'href="[^"]*dashboard\.html"', f'href="/dashboard/{clean_id}"', content)
+    return HTMLResponse(content=content, status_code=200)
+
