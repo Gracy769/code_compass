@@ -67,7 +67,21 @@ def test_runs_are_private_and_unknown_ids_do_not_redirect(tmp_path, monkeypatch)
         assert str(tmp_path) not in dashboard.text
         assert owner.get(f"/summary/{run_id}").status_code == 200
         assert owner.get("/dashboard/run_000000000000").status_code == 404
+        async def audit_stub(kind, source, run_dir, **settings):
+            assert kind == "audit" and run_dir == tmp_path / run_id
+            assert settings["model"] == "test-model"
+            assert settings["api_key"] == "one-time-key"
+
+        monkeypatch.setattr(web_module, "_bounded_worker", audit_stub)
+        assert owner.post(f"/api/audit/{run_id}", json={
+            "endpoint": "https://api.example.com/v1/chat/completions",
+            "model": "test-model", "api_key": "one-time-key",
+        }).status_code == 200
         with TestClient(web_module.app, base_url="https://testserver") as outsider:
             outsider.get("/")
             assert outsider.get(f"/dashboard/{run_id}").status_code == 404
             assert outsider.get(f"/summary/{run_id}").status_code == 404
+            assert outsider.post(f"/api/audit/{run_id}", json={
+                "endpoint": "https://api.example.com/v1/chat/completions",
+                "model": "test", "api_key": "secret",
+            }).status_code == 404

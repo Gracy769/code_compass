@@ -162,6 +162,10 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
         "total_symbols": len(result.symbols),
         "total_edges": len(result.call_edges),
         "total_contributors": len(result.contributors),
+        "contributor_history": (
+            "GitHub API" if result.contributors and result.contributors[0].github_handle
+            else "full git history" if result.contributors else "unavailable"
+        ),
         "dead_code_count": len(result.dead_code),
         "dead_code_ratio": dead_ratio,
         "average_complexity": round(avg_cx, 2),

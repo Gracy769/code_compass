@@ -529,6 +529,10 @@
       align-items: center;
       justify-content: center;
     }
+    #main-mermaid-wrapper { cursor: grab; touch-action: none; user-select: none; }
+    #main-mermaid-wrapper.dragging { cursor: grabbing; }
+    #main-mermaid-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #main-mermaid-canvas svg { display: block; max-width: none; }
     .diagram-toolbar {
       position: absolute;
       top: 1rem; right: 1rem;
@@ -1004,7 +1008,7 @@
             <div class="hero-legend">
               <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#38bdf8;"></span> Module</div>
               <div class="hero-legend-item"><span class="hero-legend-line"></span> Dependency</div>
-              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Higher risk</div>
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Top ranked file</div>
             </div>
           </div>
         </div>
@@ -1145,19 +1149,19 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.35rem; margin-bottom:0.25rem;">Interactive Architecture Diagram</h2>
-          <p style="color:var(--text-secondary); font-size:0.85rem;">Synthesized with Mermaid.js • Pan, zoom, inspect layer hierarchies and dependency links</p>
+          <p style="color:var(--text-secondary); font-size:0.85rem;">Drag to pan, scroll to zoom, or use the controls to inspect repository dependencies.</p>
         </div>
         <div style="display:flex; gap:0.5rem;">
           <button class="diagram-btn" id="btn-zoom-in" title="Zoom in">+</button>
           <button class="diagram-btn" id="btn-zoom-out" title="Zoom out">-</button>
-          <button class="diagram-btn" id="btn-zoom-reset" title="Reset view">Reset</button>
+          <button class="diagram-btn" id="btn-zoom-reset" title="Fit the full diagram">Fit all</button>
           <button class="diagram-btn" id="btn-copy-mermaid" title="Copy Mermaid Code">Copy Code</button>
           <button class="diagram-btn" id="btn-download-svg" title="Download SVG">Download SVG</button>
         </div>
       </div>
 
       <div class="mermaid-container" id="main-mermaid-wrapper" style="min-height:650px;">
-        <div id="main-mermaid-canvas" class="mermaid-target" style="transform-origin:0 0; transition:transform 0.1s ease-out;"></div>
+        <div id="main-mermaid-canvas" class="mermaid-target"></div>
       </div>
     </div>
   </section>
@@ -1207,7 +1211,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.3rem;">Top 100 Project Contributors</h2>
-          <p style="color:var(--text-secondary); font-size:0.83rem;">Synced with GitHub API & Git Log • Ranked by verified commit activity</p>
+          <p id="contrib-source" style="color:var(--text-secondary); font-size:0.83rem;">Ranked by recorded commit activity</p>
         </div>
         <input type="text" id="contrib-search" placeholder="Search contributor handle…" style="padding:0.45rem 0.85rem; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:#fff;" />
       </div>
@@ -1218,7 +1222,7 @@
             <th style="width:70px;">Rank</th>
             <th>Contributor</th>
             <th>Commits</th>
-            <th style="width:280px;">Contribution Share</th>
+            <th style="width:280px;">Share of Listed Commits</th>
             <th>Lines Added</th>
             <th>Lines Deleted</th>
           </tr>
@@ -1231,6 +1235,24 @@
   <!-- ── 7. SEMANTIC AUDIT TAB ── -->
   <section id="tab-semantic" class="tab-section" role="tabpanel">
     <div class="section-card">
+      <h2 style="color:#fff; margin-bottom:0.45rem;">Semantic Audit</h2>
+      <p style="color:var(--text-secondary); margin-bottom:1rem;">Run a focused review with your own OpenAI-compatible provider. Up to 12 ranked source files are sent to the endpoint you choose. The key is used for this request and is not saved.</p>
+      <form id="audit-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.85rem;margin-bottom:1rem;">
+        <label>Provider
+          <select id="audit-provider" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;">
+            <option value="https://api.openai.com/v1/chat/completions">OpenAI</option>
+            <option value="https://openrouter.ai/api/v1/chat/completions">OpenRouter</option>
+            <option value="https://api.groq.com/openai/v1/chat/completions">Groq</option>
+            <option value="https://api.deepseek.com/chat/completions">DeepSeek</option>
+            <option value="custom">Custom OpenAI-compatible endpoint</option>
+          </select>
+        </label>
+        <label>Model ID<input id="audit-model" required maxlength="120" placeholder="e.g. gpt-4.1-mini" autocomplete="off" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <label>API key<input id="audit-key" required type="password" maxlength="1000" autocomplete="off" placeholder="Used once, not saved" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <label id="audit-endpoint-label" style="display:none;grid-column:1/-1;">HTTPS chat completions URL<input id="audit-endpoint" type="url" placeholder="https://api.example.com/v1/chat/completions" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <div style="grid-column:1/-1;"><button class="diagram-btn" type="submit" id="audit-submit">Run Semantic Audit</button> <span id="audit-status" role="status" style="margin-left:0.7rem;color:var(--text-secondary);"></span></div>
+      </form>
+      <p style="color:var(--text-secondary);font-size:0.78rem;margin-bottom:1rem;">Model output is a review aid. Verify findings against the code before acting on them.</p>
       <div class="table-toolbar">
         <label for="semantic-severity">Severity:</label>
         <select id="semantic-severity">
@@ -1249,7 +1271,7 @@
         </select>
       </div>
       <div id="semantic-empty" style="display:none; padding: 2rem; text-align:center; color: var(--text-secondary);">
-        Semantic auditing is not configured. No security conclusion is available from this tab.
+        Semantic auditing has not run for this repository.
       </div>
       <table class="data-table" id="semantic-table" style="display:none">
         <thead>
@@ -1359,7 +1381,8 @@
     if (!_tabInited[id]) {
       _tabInited[id] = true;
       if (id === 'prompt')       initSystemPromptTab();
-      if (id === 'architecture') initMermaidDiagram();
+      if (id === 'overview')     initMermaidDiagram();
+      if (id === 'architecture') requestAnimationFrame(focusDiagram);
       if (id === 'callgraph')    initCallGraphChart();
       if (id === 'contributors') initContributorsTab();
       if (id === 'semantic')     initSemanticTab();
@@ -1546,15 +1569,30 @@
     var canvas = document.getElementById('hero-topology-canvas');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
-    var hubs = [
-      { label: 'core',     x: 0.50, y: 0.45, r: 10, color: '#00b4d8', glow: 'rgba(0,180,216,0.6)'  },
-      { label: 'api',      x: 0.25, y: 0.30, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.5)' },
-      { label: 'models',   x: 0.72, y: 0.28, r:  7, color: '#818cf8', glow: 'rgba(129,140,248,0.5)'},
-      { label: 'services', x: 0.22, y: 0.62, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.4)' },
-      { label: 'data',     x: 0.65, y: 0.70, r:  7, color: '#00b4d8', glow: 'rgba(0,180,216,0.4)'  },
-      { label: 'utils',    x: 0.82, y: 0.50, r:  6, color: '#7dd3fc', glow: 'rgba(125,211,252,0.4)'},
-    ];
-    var edges = [[0,1],[0,2],[0,3],[0,4],[1,3],[2,5],[4,5],[1,2],[3,4]];
+    var rankedFiles = files.slice().sort(function(a,b){ return (b.rank_score || 0) - (a.rank_score || 0); }).slice(0, 8);
+    var hubs = rankedFiles.map(function(file, i) {
+      var angle = (2 * Math.PI * i / Math.max(rankedFiles.length, 1)) - Math.PI / 2;
+      return {
+        path: file.path, label: file.path.split(/[\\/]/).pop(),
+        x: 0.5 + 0.34 * Math.cos(angle), y: 0.5 + 0.30 * Math.sin(angle),
+        r: i === 0 ? 9 : 6, color: i === 0 ? '#fbbf24' : '#38bdf8',
+        glow: i === 0 ? 'rgba(251,191,36,0.5)' : 'rgba(56,189,248,0.45)'
+      };
+    });
+    var symbolFile = {};
+    symbols.forEach(function(s) { if (s.name && s.file) symbolFile[s.name] = s.file; });
+    var hubIndex = {};
+    hubs.forEach(function(h, i) { hubIndex[h.path] = i; });
+    var edgeSeen = {};
+    var edges = [];
+    callEdges.forEach(function(e) {
+      var from = hubIndex[symbolFile[e.caller] || symbolFile[(e.caller || '').split('.').pop()]];
+      var to = hubIndex[symbolFile[e.callee] || symbolFile[(e.callee || '').split('.').pop()]];
+      var key = from + ':' + to;
+      if (from != null && to != null && from !== to && !edgeSeen[key]) {
+        edges.push([from, to]); edgeSeen[key] = true;
+      }
+    });
     var floatPhase = 0;
 
     function resizeCanvas() {
@@ -1680,19 +1718,58 @@
     }
   }
 
-  var _currentZoom = 1;
+  var _mermaidStarted = false;
+  var fitDiagram = function() {};
+  var focusDiagram = function() {};
   function initMermaidDiagram() {
+    if (_mermaidStarted) return;
+    _mermaidStarted = true;
     loadMermaid(function() {
       var code = mermaidArch || 'flowchart TD\n  subgraph Core\n    app["App Kernel"]\n  end';
       var canvas = document.getElementById('main-mermaid-canvas');
       var overviewCanvas = document.getElementById('overview-mermaid-svg');
+      var wrapper = document.getElementById('main-mermaid-wrapper');
+      var scale = 1, panX = 0, panY = 0, diagramWidth = 800, diagramHeight = 600;
+      function applyView() {
+        canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+      }
+      fitDiagram = function() {
+        if (!canvas.querySelector('svg') || !wrapper.clientWidth) return;
+        scale = Math.max(0.1, Math.min(2, (wrapper.clientWidth - 40) / diagramWidth,
+          (wrapper.clientHeight - 40) / diagramHeight));
+        panX = (wrapper.clientWidth - diagramWidth * scale) / 2;
+        panY = (wrapper.clientHeight - diagramHeight * scale) / 2;
+        applyView();
+      };
+      function zoomAt(factor, x, y) {
+        var next = Math.max(0.1, Math.min(5, scale * factor));
+        panX = x - (x - panX) * next / scale;
+        panY = y - (y - panY) * next / scale;
+        scale = next;
+        applyView();
+      }
+      focusDiagram = function() {
+        fitDiagram();
+        if (scale < 0.75 && wrapper.clientWidth) {
+          zoomAt(0.75 / scale, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
+        }
+      };
 
       // Render main diagram first, then overview sequentially to avoid Mermaid
       // internal ID conflicts when two renders run concurrently.
       try {
         window.mermaid.render('mermaid-svg-main', code).then(function(res) {
           canvas.innerHTML = res.svg;
-          _applySvgSize(canvas, 600);
+          var svg = canvas.querySelector('svg');
+          var viewBox = svg.viewBox.baseVal;
+          diagramWidth = viewBox && viewBox.width ? viewBox.width : 800;
+          diagramHeight = viewBox && viewBox.height ? viewBox.height : 600;
+          svg.style.width = diagramWidth + 'px';
+          svg.style.height = diagramHeight + 'px';
+          svg.style.maxWidth = 'none';
+          canvas.style.width = diagramWidth + 'px';
+          canvas.style.height = diagramHeight + 'px';
+          focusDiagram();
           // Render overview only after main is done
           return window.mermaid.render('mermaid-svg-ov', code);
         }).then(function(res) {
@@ -1707,19 +1784,35 @@
         canvas.textContent = code;
       }
 
-      // Zoom & Pan controls
+      // Zoom at the viewport center; wheel zooms at the pointer, drag pans.
       document.getElementById('btn-zoom-in').onclick = function() {
-        _currentZoom = Math.min(_currentZoom + 0.2, 2.5);
-        canvas.style.transform = 'scale(' + _currentZoom + ')';
+        zoomAt(1.25, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
       };
       document.getElementById('btn-zoom-out').onclick = function() {
-        _currentZoom = Math.max(_currentZoom - 0.2, 0.4);
-        canvas.style.transform = 'scale(' + _currentZoom + ')';
+        zoomAt(0.8, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
       };
-      document.getElementById('btn-zoom-reset').onclick = function() {
-        _currentZoom = 1;
-        canvas.style.transform = 'scale(1)';
-      };
+      document.getElementById('btn-zoom-reset').onclick = fitDiagram;
+      wrapper.addEventListener('wheel', function(event) {
+        event.preventDefault();
+        var rect = wrapper.getBoundingClientRect();
+        zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, event.clientX - rect.left, event.clientY - rect.top);
+      }, {passive:false});
+      var lastX, lastY;
+      wrapper.addEventListener('pointerdown', function(event) {
+        wrapper.setPointerCapture(event.pointerId);
+        wrapper.classList.add('dragging');
+        lastX = event.clientX; lastY = event.clientY;
+      });
+      wrapper.addEventListener('pointermove', function(event) {
+        if (!wrapper.hasPointerCapture(event.pointerId)) return;
+        panX += event.clientX - lastX; panY += event.clientY - lastY;
+        lastX = event.clientX; lastY = event.clientY;
+        applyView();
+      });
+      wrapper.addEventListener('pointerup', function(event) {
+        if (wrapper.hasPointerCapture(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+        wrapper.classList.remove('dragging');
+      });
       document.getElementById('btn-copy-mermaid').onclick = function() {
         navigator.clipboard.writeText(code);
         showToast('Mermaid syntax copied to clipboard!');
@@ -1736,9 +1829,6 @@
     });
   }
 
-  // Trigger overview diagram render on initial load
-  setTimeout(initMermaidDiagram, 100);
-
   // ── CONTRIBUTORS TAB ─────────────────────────────────────────
   var _contribInited = false;
   function initContributorsTab() {
@@ -1747,7 +1837,11 @@
 
     var tbody = document.getElementById('contrib-tbody');
     var searchEl = document.getElementById('contrib-search');
-    var maxCommits = contributors.length ? Math.max.apply(null, contributors.map(function(c) { return c.commits; })) : 1;
+    var totalCommits = contributors.reduce(function(sum, c) { return sum + c.commits; }, 0) || 1;
+    document.getElementById('contrib-source').textContent = contributors.length
+      ? 'Source: ' + (repoStats.contributor_history || 'available Git history') + ' · Up to 100 contributors' +
+        (repoStats.contributor_history === 'GitHub API' ? ' · Line totals use a separately refreshed GitHub snapshot' : '')
+      : 'Contributor history is unavailable for this source.';
 
     function renderList(list) {
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
@@ -1756,25 +1850,32 @@
 
         // Rank badge
         var rankTd = document.createElement('td');
-        var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1);
+        var rank = c.rank || contributors.indexOf(c) + 1;
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         rankTd.innerHTML = '<span class="rank-medal">' + medal + '</span>';
         tr.appendChild(rankTd);
 
         // Contributor with Avatar
         var authTd = document.createElement('td');
-        var avatar = document.createElement('img');
-        avatar.className = 'contrib-avatar';
-        avatar.src = c.avatar_url || 'https://github.com/identicons/' + encodeURIComponent(c.author) + '.png';
-        avatar.onerror = function() { this.src = 'https://avatars.githubusercontent.com/u/9919?v=4'; };
-        authTd.appendChild(avatar);
+        if (c.avatar_url) {
+          var avatar = document.createElement('img');
+          avatar.className = 'contrib-avatar';
+          avatar.src = c.avatar_url;
+          avatar.alt = '';
+          avatar.onerror = function() { this.style.display = 'none'; };
+          authTd.appendChild(avatar);
+        }
 
-        var nameSpan = document.createElement('a');
+        var nameSpan = document.createElement(c.github_handle ? 'a' : 'span');
         nameSpan.textContent = c.author;
         nameSpan.style.color = '#ffffff';
         nameSpan.style.fontWeight = '600';
         nameSpan.style.textDecoration = 'none';
-        nameSpan.href = 'https://github.com/' + encodeURIComponent(c.github_handle || c.author);
-        nameSpan.target = '_blank';
+        if (c.github_handle) {
+          nameSpan.href = 'https://github.com/' + encodeURIComponent(c.github_handle);
+          nameSpan.target = '_blank';
+          nameSpan.rel = 'noopener noreferrer';
+        }
         authTd.appendChild(nameSpan);
         tr.appendChild(authTd);
 
@@ -1787,13 +1888,14 @@
 
         // Share Progress Bar
         var shareTd = document.createElement('td');
-        var pct = Math.round((c.commits / maxCommits) * 100);
+        var pct = Math.round((c.commits / totalCommits) * 100);
+        var pctLabel = pct === 0 && c.commits > 0 ? '<1%' : pct + '%';
         shareTd.innerHTML =
           '<div style="display:flex; align-items:center; gap:0.6rem;">' +
             '<div style="flex:1; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">' +
               '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg, #3b82d4, #8b5cf6); border-radius:4px;"></div>' +
             '</div>' +
-            '<span style="font-size:0.75rem; color:var(--text-secondary); width:36px;">' + pct + '%</span>' +
+            '<span style="font-size:0.75rem; color:var(--text-secondary); width:36px;">' + pctLabel + '</span>' +
           '</div>';
         tr.appendChild(shareTd);
 
@@ -1941,6 +2043,45 @@
     var tbody    = document.getElementById('semantic-tbody');
     var sevSel   = document.getElementById('semantic-severity');
     var catSel   = document.getElementById('semantic-category');
+    var provider = document.getElementById('audit-provider');
+    var endpointLabel = document.getElementById('audit-endpoint-label');
+    var form = document.getElementById('audit-form');
+    var status = document.getElementById('audit-status');
+    provider.addEventListener('change', function() {
+      endpointLabel.style.display = provider.value === 'custom' ? '' : 'none';
+    });
+    form.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      var runId = window.location.pathname.match(/^\/dashboard\/(run_[a-f0-9]{12})$/);
+      if (!runId) { status.textContent = 'Run a web analysis first to enable auditing.'; return; }
+      var keyInput = document.getElementById('audit-key');
+      var button = document.getElementById('audit-submit');
+      var payload = {
+        endpoint: provider.value === 'custom' ? document.getElementById('audit-endpoint').value.trim() : provider.value,
+        model: document.getElementById('audit-model').value.trim(),
+        api_key: keyInput.value
+      };
+      if (!payload.endpoint || !payload.model || !payload.api_key) {
+        status.textContent = 'Enter the endpoint, model, and API key.'; return;
+      }
+      button.disabled = true;
+      status.textContent = 'Auditing selected source files…';
+      try {
+        var response = await fetch('/api/audit/' + runId[1], {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        var data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Audit failed');
+        window.location.reload();
+      } catch (error) {
+        status.textContent = error.message;
+        button.disabled = false;
+      } finally {
+        keyInput.value = '';
+        payload.api_key = '';
+      }
+    });
 
     var SEV_COLOR = { high: '#f87171', medium: '#fbbf24', low: '#86efac' };
 
@@ -1982,6 +2123,16 @@
       });
     }
 
+    if (repoStats.semantic_status === 'available' && !semanticFindings.length) {
+      emptyEl.textContent = 'No findings in the files reviewed by ' + (repoStats.semantic_model || 'the configured model') + '. This is not a security guarantee.';
+    }
+    semanticFindings.forEach(function(f) {
+      if (f.category && !Array.from(catSel.options).some(function(o){ return o.value === f.category; })) {
+        var option = document.createElement('option'); option.value = f.category;
+        option.textContent = f.category.replace(/_/g, ' ');
+        catSel.appendChild(option);
+      }
+    });
     if (!semanticFindings || semanticFindings.length === 0) {
       emptyEl.style.display = '';
       tableEl.style.display = 'none';

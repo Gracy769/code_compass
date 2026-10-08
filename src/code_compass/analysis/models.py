@@ -68,7 +68,7 @@ class SemanticFinding:
     category: str      # 'race_condition' | 'state_mutation' | 'error_handling' | 'insecure_defaults'
     summary: str       # one-line description (≤ 120 chars)
     detail: str        # multi-sentence explanation
-    prompt_used: str = "[mock]"  # exact prompt sent to the LLM, or '[mock]' for stubs
+    prompt_used: str = ""  # provenance label; no key or source excerpt is persisted
 
 
 @dataclass
