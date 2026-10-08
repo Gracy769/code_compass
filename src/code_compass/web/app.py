@@ -955,7 +955,7 @@ LANDING_HTML = """<!DOCTYPE html>
       <div class="modal-title">Your GitHub Repositories</div>
       <div id="repoPickerStatus" role="status" style="margin-top:0.75rem;"></div>
       <div id="repoPickerList" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
-      <div class="modal-actions"><button class="btn btn-secondary" onclick="switchGitHubAccount()">Switch account</button><button class="btn btn-secondary" onclick="document.getElementById('repoPickerModal').style.display='none'">Close</button></div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="logOutGitHubAccount()">Log out</button><button class="btn btn-secondary" onclick="document.getElementById('repoPickerModal').style.display='none'">Close</button></div>
     </div>
   </div>
 
@@ -1281,12 +1281,16 @@ LANDING_HTML = """<!DOCTYPE html>
       if (error) alert('GitHub sign-in failed: ' + error.message);
     }
 
-    async function switchGitHubAccount() {
+    async function logOutGitHubAccount() {
       const sb = await getSupabaseClient();
-      if (sb) await sb.auth.signOut();
+      if (sb) {
+        const { error } = await sb.auth.signOut();
+        if (error) { alert('Log out failed: ' + error.message); return; }
+      }
+      githubToken = null;
       sessionStorage.removeItem('gh_token');
       document.getElementById('repoPickerModal').style.display = 'none';
-      await startGitHubOAuth();
+      updateGhButton();
     }
 
     async function handleGitHubAuth() {
