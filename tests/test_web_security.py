@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,6 +26,28 @@ def test_only_canonical_github_repository_urls(url):
 
 def test_canonical_github_url():
     assert canonical_github_url("https://github.com/fastapi/fastapi") == "https://github.com/fastapi/fastapi.git"
+
+
+def test_cached_github_analysis_keeps_source_links(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
+    ref = "a" * 40
+    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: SimpleNamespace(
+        repo_stats={"github_ref": ref},
+    ))
+    rendered = []
+
+    def render_stub(_result, path, **kwargs):
+        rendered.append(kwargs)
+        path.write_text("dashboard", encoding="utf-8")
+        path.with_name("dashboard-summary.html").write_text("summary", encoding="utf-8")
+
+    monkeypatch.setattr(web_module, "render", render_stub)
+    with TestClient(web_module.app, base_url="https://testserver") as client:
+        client.get("/")
+        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"})
+    assert response.status_code == 200
+    assert rendered[-1]["github_slug"] == "o/r"
+    assert rendered[-1]["github_ref"] == ref
 
 
 def test_zip_traversal_rejected(tmp_path):

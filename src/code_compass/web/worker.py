@@ -106,13 +106,15 @@ def main() -> None:
     result = analyze(manifest, strict=args.strict, semantic=args.semantic,
                      prefer_local_contributors=args.kind == "zip")
     result.repo_stats["analysis_seconds"] = round(time.perf_counter() - started, 2)
+    if slug and repo_ref:
+        result.repo_stats["github_ref"] = repo_ref
     result.ai_system_prompt = generate_ai_system_prompt(
         result, repo_name,
         project_description=str(result.repo_stats.get("project_description", "")),
     )
     if args.kind == "git":
         result.repo_stats["contributor_history"] = (
-            "GitHub API" if result.contributors and result.contributors[0].github_handle
+            "GitHub and Git commit history" if result.contributors and result.contributors[0].github_handle
             else "full git history"
         )
     else:

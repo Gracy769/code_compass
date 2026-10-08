@@ -1307,14 +1307,15 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
 
     hash_str = compute_hash(repo_url)
     cached = load_cache(hash_str, ttl_days=7)
-    if cached is not None:
-        run_id = f"run_{uuid.uuid4().hex[:12]}"
-        work_dir = STORAGE_DIR / run_id
-        work_dir.mkdir(parents=True, mode=0o700)
-        session = request.cookies.get(SESSION_COOKIE, "")
-        (work_dir / "owner").write_text(session, encoding="ascii")
+    cached_ref = str(cached.repo_stats.get("github_ref", "")) if cached is not None else ""
+    # Older cache entries have no source revision and cannot produce working
+    # GitHub links. Refresh them once, then keep cache hits fully linked.
+    if cached is not None and re.fullmatch(r"[0-9a-fA-F]{40}", cached_ref):
+        run_id, work_dir = _new_run(request)
         try:
-            render(cached, work_dir / "dashboard.html", repo_name=repo_url.rstrip(".git").split("/")[-1])
+            slug = urlsplit(repo_url).path.strip("/").removesuffix(".git")
+            render(cached, work_dir / "dashboard.html", repo_name=slug.split("/")[-1],
+                   github_slug=slug, github_ref=cached_ref)
             return {
                 "success": "true",
                 "analysis_id": run_id,
@@ -1344,7 +1345,7 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
         if _aj.is_file():
             _data = _json.loads(_aj.read_text(encoding="utf-8"))
             _result = _dict_to_analysis_result(_data)
-            save_cache(hash_str, _result, ttl_days=7, repo_name=repo_url.rstrip(".git").split("/")[-1])
+            save_cache(hash_str, _result, ttl_days=7, repo_name=Path(urlsplit(repo_url).path).stem)
     except Exception:
         pass
 

@@ -555,6 +555,12 @@
       border: 1px solid rgba(255,255,255,0.15);
       background: #1e293b;
     }
+    .contrib-avatar-fallback {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; margin-right: 0.6rem;
+      border-radius: 50%; background: #3a302c; color: #f2eee7;
+      font-size: 0.8rem; font-weight: 700; vertical-align: middle;
+    }
     .rank-medal { font-size: 1.1rem; margin-right: 0.3rem; }
 
     /* Repository mind map */
@@ -1752,14 +1758,21 @@
 
         // Contributor with Avatar
         var authTd = document.createElement('td');
-        if (c.avatar_url) {
+        var avatarFallback = document.createElement('span');
+        avatarFallback.className = 'contrib-avatar-fallback';
+        avatarFallback.textContent = (c.author || '?').trim().charAt(0).toUpperCase() || '?';
+        var avatarUrl = c.avatar_url || (c.github_handle
+          ? 'https://github.com/' + encodeURIComponent(c.github_handle) + '.png?size=64' : '');
+        if (avatarUrl) {
           var avatar = document.createElement('img');
           avatar.className = 'contrib-avatar';
-          avatar.src = c.avatar_url;
+          avatar.src = avatarUrl;
           avatar.alt = '';
-          avatar.onerror = function() { this.style.display = 'none'; };
+          avatar.onerror = function() { this.style.display = 'none'; avatarFallback.style.display = 'inline-flex'; };
+          avatarFallback.style.display = 'none';
           authTd.appendChild(avatar);
         }
+        authTd.appendChild(avatarFallback);
 
         var nameSpan = document.createElement(c.github_handle ? 'a' : 'span');
         nameSpan.textContent = c.author;
