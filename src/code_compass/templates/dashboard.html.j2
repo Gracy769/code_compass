@@ -760,15 +760,13 @@
       gap: 1rem;
       backdrop-filter: blur(8px);
     }
-    .hero-spinner {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      border: 3px solid rgba(0,180,216,0.2);
-      border-top-color: #00b4d8;
-      animation: heroSpin 1.2s linear infinite;
-      flex-shrink: 0;
+    .hero-complete-icon {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 50%; display: grid; place-items: center;
+      color: #6ee7b7; background: rgba(16,185,129,0.13);
+      border: 1px solid rgba(110,231,183,0.5);
+      box-shadow: 0 0 0 4px rgba(16,185,129,0.08);
     }
-    @keyframes heroSpin { to { transform: rotate(360deg); } }
     .hero-status-info { flex: 1; min-width: 0; }
     .hero-status-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: #67e8f9; text-transform: uppercase; margin-bottom: 0.25rem; }
     .hero-status-sub { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -781,13 +779,11 @@
     }
     .hero-progress-fill {
       height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #00b4d8, #38bdf8);
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #6ee7b7);
       border-radius: 4px;
-      animation: heroProgressFill 2.2s ease-out 0.3s forwards;
     }
-    .hero-progress-pct { font-size: 0.7rem; color: #38bdf8; font-weight: 700; margin-left: auto; flex-shrink: 0; }
-    @keyframes heroProgressFill { from { width: 0%; } to { width: 100%; } }
+    .hero-progress-pct { font-size: 0.7rem; color: #6ee7b7; font-weight: 700; margin-left: auto; flex-shrink: 0; }
 
     .hero-canvas-wrap {
       position: relative;
@@ -988,7 +984,9 @@
       <div class="hero-right">
         <!-- Status Card -->
         <div class="hero-status-card">
-          <div class="hero-spinner"></div>
+          <div class="hero-complete-icon" role="img" aria-label="Analysis complete">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg>
+          </div>
           <div class="hero-status-info">
             <div class="hero-status-title">Analysis complete</div>
             <div class="hero-status-sub">Results from this repository</div>
