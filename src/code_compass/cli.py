@@ -36,7 +36,7 @@ def main() -> None:
     "--semantic",
     is_flag=True,
     default=False,
-    help="Enable LLM-powered semantic audit on the top-5 most complex files (opt-in; requires token budget).",
+    help="Reserved for a future semantic audit provider; no findings are generated yet.",
 )
 def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     """Analyse REPO_PATH and emit a self-contained HTML dashboard."""
@@ -48,7 +48,7 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     if strict:
         click.echo("[code-compass] Dead-code detection: enabled")
     if semantic:
-        click.echo("[code-compass] Semantic audit: enabled (top-5 complex files)")
+        click.echo("[code-compass] Semantic audit is not configured; no semantic findings will be generated.")
 
     manifest = discover(repo)
     total = len(manifest.files)
@@ -92,7 +92,12 @@ def analyze(repo_path: str, output: str, strict: bool, semantic: bool) -> None:
     # attempts (e.g. --output ../../../../etc/passwd or --output /etc/cron.d/evil).
     # Catch it here so the user sees a clean error instead of a raw traceback.
     try:
-        written = render(result, out, repo_name=repo.name, github_slug=slug)
+        from git import Repo
+        try:
+            repo_ref = Repo(repo, search_parent_directories=False).head.commit.hexsha
+        except Exception:
+            repo_ref = ""
+        written = render(result, out, repo_name=repo.name, github_slug=slug, github_ref=repo_ref)
     except ValueError as exc:
         click.echo(f"[code-compass] ERROR: {exc}", err=True)
         sys.exit(1)

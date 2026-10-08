@@ -42,12 +42,8 @@ def test_output_file_created(tmp_repo: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_output_is_self_contained(tmp_repo: Path) -> None:
-    """Output HTML must contain no external <link> or <script src> tags other
-    than the Chart.js CDN reference.
-
-    All CSS and JS (except Chart.js loaded at browser-open time) must be inlined.
-    """
+def test_output_has_no_immediate_external_scripts(tmp_repo: Path) -> None:
+    """Opening a dashboard must not immediately execute external scripts."""
     output = tmp_repo / "dashboard.html"
     render(_empty_result(), output, repo_name="test-repo")
 
@@ -63,11 +59,7 @@ def test_output_is_self_contained(tmp_repo: Path) -> None:
 
     # Collect all <script src="..."> tags.
     script_srcs = re.findall(r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']', html, re.IGNORECASE)
-    for src in script_srcs:
-        # The only allowed external script is Chart.js via CDN.
-        assert "chart.js" in src.lower() or "chartjs" in src.lower(), (
-            f"Unexpected external <script src> found in output: {src!r}"
-        )
+    assert not script_srcs
 
 
 # ---------------------------------------------------------------------------
