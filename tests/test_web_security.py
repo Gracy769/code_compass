@@ -110,6 +110,7 @@ def test_private_cache_access_requires_contents_permission(monkeypatch):
     class FakeResponse:
         def __init__(self, body):
             self.body = body
+            self.headers = {}
 
         def __enter__(self):
             return self
@@ -135,12 +136,40 @@ def test_private_cache_access_requires_contents_permission(monkeypatch):
     assert web_module._github_repo_visibility("https://github.com/o/r.git", "code-token") == "private"
 
 
+def test_public_repository_is_verified_when_github_rest_is_rate_limited(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        headers = {"Content-Type": "application/x-git-upload-pack-advertisement"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def fake_urlopen(request, timeout):
+        calls.append(request)
+        if request.full_url.startswith("https://api.github.com/"):
+            raise urllib.error.HTTPError(request.full_url, 403, "Rate limited", {}, None)
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    assert web_module._github_repo_visibility("https://github.com/o/r.git", "") == "public"
+    assert calls[1].full_url.endswith("/info/refs?service=git-upload-pack")
+    assert "Authorization" not in calls[1].headers
+
+
 def test_public_analysis_is_saved_for_later_visitors(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
     monkeypatch.setattr(web_module, "_github_repo_visibility", lambda *_args: "public")
     monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: None)
     saved = []
-    monkeypatch.setattr(web_module, "save_cache", lambda *args, **kwargs: saved.append((args, kwargs)))
+    def save_stub(*args, **kwargs):
+        saved.append((args, kwargs))
+        return True
+
+    monkeypatch.setattr(web_module, "save_cache", save_stub)
 
     async def worker_stub(_kind, _source, work_dir, **_kwargs):
         result = AnalysisResult(repo_stats={"github_ref": "b" * 40})
@@ -152,6 +181,7 @@ def test_public_analysis_is_saved_for_later_visitors(tmp_path, monkeypatch):
         response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
                                headers={"X-CSRF-Token": client.cookies.get("csrf_token", "")})
     assert response.status_code == 200
+    assert response.json()["cache_status"] == "saved"
     assert len(saved) == 1
     assert saved[0][1]["github_slug"] == "o/r"
 

@@ -1409,6 +1409,23 @@ def _github_repo_visibility(repo_url: str, token: str) -> str | None:
             return "private"
     except (OSError, ValueError, TypeError):
         pass
+
+    # REST calls without a token share GitHub's per-IP limit. A successful
+    # anonymous Git fetch advertisement independently proves a repo is public.
+    # Never use a caller token here: private repositories must not be cached as
+    # public when their metadata request fails.
+    public_refs = urllib.request.Request(
+        f"{repo_url}/info/refs?service=git-upload-pack",
+        headers={"User-Agent": "git/2.0", "Git-Protocol": "version=2"},
+    )
+    try:
+        with urllib.request.urlopen(public_refs, timeout=8) as response:
+            if response.headers.get("Content-Type", "").startswith(
+                "application/x-git-upload-pack-advertisement"
+            ):
+                return "public"
+    except (OSError, ValueError):
+        pass
     return None
 
 
@@ -1443,6 +1460,7 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
                     "success": "true", "analysis_id": run_id,
                     "dashboard_url": f"/dashboard/{run_id}",
                     "summary_url": f"/summary/{run_id}",
+                    "cache_status": "hit",
                 }
             except Exception:
                 shutil.rmtree(work_dir, ignore_errors=True)
@@ -1457,19 +1475,23 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
             raise
         raise HTTPException(status_code=500, detail="Repository analysis failed or timed out.") from exc
 
+    cache_status = "unverified" if not cache_key else "not_saved"
     if cache_key:
         try:
             data = json.loads((work_dir / "analysis.json").read_text(encoding="utf-8"))
-            save_cache(cache_key, _dict_to_analysis_result(data), ttl_days=7,
-                       repo_name=slug.split("/")[-1], github_slug=slug)
-        except (OSError, ValueError, KeyError, TypeError):
-            pass
+            saved = save_cache(cache_key, _dict_to_analysis_result(data), ttl_days=7,
+                               repo_name=slug.split("/")[-1], github_slug=slug)
+            cache_status = "saved" if saved else "write_failed"
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            cache_status = "prepare_failed"
+            print(f"CACHE PREPARE FAILED: {type(exc).__name__}")
 
     return {
         "success": "true",
         "analysis_id": run_id,
         "dashboard_url": f"/dashboard/{run_id}",
         "summary_url": f"/summary/{run_id}",
+        "cache_status": cache_status,
     }
 
 
