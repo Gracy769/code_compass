@@ -1146,7 +1146,7 @@
           <h2 style="color:#ffffff; font-size:1.3rem;">Top 100 Project Contributors</h2>
           <p id="contrib-source" style="color:var(--text-secondary); font-size:0.83rem;">Ranked by recorded commit activity</p>
         </div>
-        <input type="text" id="contrib-search" placeholder="Search contributor handle…" style="padding:0.45rem 0.85rem; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:#fff;" />
+        <input type="text" id="contrib-search" placeholder="Search contributor…" style="padding:0.45rem 0.85rem; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:#fff;" />
       </div>
 
       <p id="contrib-empty" role="status" style="display:none; color:var(--text-secondary); padding:1.5rem 0;"></p>
@@ -1783,9 +1783,10 @@
     var emptyEl = document.getElementById('contrib-empty');
     var tableEl = document.getElementById('contrib-table');
     var totalCommits = contributors.reduce(function(sum, c) { return sum + c.commits; }, 0) || 1;
+    var missingLineTotals = contributors.some(function(c) { return c.line_stats_available === false; });
     document.getElementById('contrib-source').textContent = contributors.length
       ? 'Source: ' + (repoStats.contributor_history || 'available Git history') + ' · Up to 100 contributors' +
-        (repoStats.contributor_history === 'GitHub API' ? ' · Line totals use a separately refreshed GitHub snapshot' : '')
+        (missingLineTotals ? ' · Some line totals are unavailable: GitHub statistics are pending and local totals could not be calculated' : '')
       : repoStats.contributor_history || 'Contributor history is unavailable for this source.';
     if (!contributors.length) {
       tableEl.style.display = 'none';
