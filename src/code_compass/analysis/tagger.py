@@ -409,6 +409,13 @@ def compute_file_rankings(
 # 5. Mermaid Architecture Generator (GitDiagram inspiration)
 # ===========================================================================
 
+def _mermaid_label(value: str) -> str:
+    """Keep repository-supplied names out of Mermaid's diagram syntax."""
+    safe = "".join(char if char.isalnum() or char in " ._-" else " " for char in value)
+    label = " ".join(safe.split())[:56] or "Unnamed file"
+    return "End" if label == "end" else label
+
+
 def generate_mermaid_architecture(
     files: list[dict],
     call_edges: list[dict],
@@ -422,26 +429,27 @@ def generate_mermaid_architecture(
     lookup so that call edges (which carry symbol names, not file paths) are
     correctly resolved to their owning file nodes.
     """
-    layer_files: dict[str, list[tuple]] = defaultdict(list)
+    layer_files: dict[str, list[tuple[str, str]]] = defaultdict(list)
     file_id_map: dict[str, str] = {}   # path / basename → node_id
     node_counter = 1
 
     # Keep the first view readable while retaining an explorable graph.
     sorted_files = sorted(files, key=lambda x: x.get("rank_score", 0), reverse=True)[:15]
-    top_nodes = {f"node_{i}" for i in range(1, min(3, len(sorted_files)) + 1)}
 
     for f in sorted_files:
         path = f["path"].replace("\\", "/")
         bname = path.split("/")[-1]
         # Strip extension for a cleaner label
         stem = bname.rsplit(".", 1)[0] if "." in bname else bname
+        if not stem:  # dotfiles such as .env have no name before the dot
+            stem = bname
         node_id = f"node_{node_counter}"
         node_counter += 1
         file_id_map[path] = node_id
         file_id_map[bname] = node_id
         file_id_map[stem] = node_id
         layer = f.get("layer", "core")
-        layer_files[layer].append((node_id, stem, f.get("rank_score", 0)))
+        layer_files[layer].append((node_id, _mermaid_label(stem)))
 
     # Build symbol-name → node_id map from the symbols list (if available)
     # This is the primary lookup: call edges carry symbol names, not paths.
@@ -456,19 +464,17 @@ def generate_mermaid_architecture(
                 if nid:
                     sym_to_node[sym_name] = nid
 
-    lines = ["flowchart TD", f"  %% Architecture Topology — {repo_name}", ""]
+    lines = ["flowchart TD", "  %% Architecture topology", ""]
 
     # Layer subgraphs
     for layer, items in layer_files.items():
         if not items:
             continue
-        title = LAYER_LABELS.get(layer, layer.capitalize())
-        lines.append(f'  subgraph sub_{layer} ["{title}"]')
-        for node_id, stem, score in items:
-            if node_id in top_nodes:
-                lines.append(f'    {node_id}[["★ {stem}"]]')
-            else:
-                lines.append(f'    {node_id}["{stem}"]')
+        title = _mermaid_label(LAYER_LABELS.get(layer, str(layer).capitalize()))
+        layer_id = re.sub(r"[^A-Za-z0-9_]", "_", str(layer))
+        lines.append(f'  subgraph sub_{layer_id} ["{title}"]')
+        for node_id, stem in items:
+            lines.append(f'    {node_id}["{stem}"]')
         lines.append("  end")
         lines.append("")
 

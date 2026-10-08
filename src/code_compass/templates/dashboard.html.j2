@@ -1708,7 +1708,7 @@
 
   // ── 6. DYNAMIC MERMAID LOADER & DIAGRAM RENDERER ───────────────
   function loadMermaid(callback) {
-    if (window.mermaid) { callback(); return; }
+    if (window.mermaid) { callback(true); return; }
     var script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.5/dist/mermaid.min.js';
     script.integrity = 'sha384-enVdc7lTHDGtpROV85t9+VqPC2EyyB0hsRD0MrvQnHUsHmTHIz2D8SPP4EnBkstH';
@@ -1727,8 +1727,9 @@
           lineColor: '#60a5fa',
         }
       });
-      callback();
+      callback(true);
     };
+    script.onerror = function() { callback(false); };
     document.head.appendChild(script);
   }
 
@@ -1747,7 +1748,13 @@
   function initMermaidDiagram() {
     if (_mermaidStarted) return;
     _mermaidStarted = true;
-    loadMermaid(function() {
+    loadMermaid(function(loaded) {
+      if (!loaded) {
+        document.getElementById('main-mermaid-canvas').textContent = 'Diagram library could not load. Check your connection and reopen Architecture.';
+        document.getElementById('overview-mermaid-svg').textContent = 'Diagram unavailable while the library is offline.';
+        _mermaidStarted = false;
+        return;
+      }
       var code = mermaidArch || 'flowchart TD\n  subgraph Core\n    app["App Kernel"]\n  end';
       var canvas = document.getElementById('main-mermaid-canvas');
       var overviewCanvas = document.getElementById('overview-mermaid-svg');
@@ -1800,11 +1807,13 @@
             overviewCanvas.innerHTML = res.svg;
             _applySvgSize(overviewCanvas, 360);
           }
-        }).catch(function(err) {
-          canvas.textContent = 'Diagram render error: ' + err;
+        }).catch(function() {
+          canvas.textContent = 'This architecture diagram could not be displayed. Open Call Graph to inspect the indexed relationships.';
+          overviewCanvas.textContent = 'Architecture diagram unavailable for this repository.';
         });
       } catch (err) {
-        canvas.textContent = code;
+        canvas.textContent = 'This architecture diagram could not be displayed. Open Call Graph to inspect the indexed relationships.';
+        overviewCanvas.textContent = 'Architecture diagram unavailable for this repository.';
       }
 
       // Zoom at the viewport center; wheel zooms at the pointer, drag pans.
