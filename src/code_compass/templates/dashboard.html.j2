@@ -190,6 +190,11 @@
       margin-bottom: 1.5rem;
       backdrop-filter: blur(var(--blur-radius));
       box-shadow: var(--clay-shadow);
+      overflow-x: auto;
+    }
+    .data-table {
+      table-layout: fixed;
+      width: 100%;
     }
     .bento-grid {
       display: grid;
@@ -453,20 +458,13 @@
   </div>
 
   <div class="nav-actions">
-    <!-- Requirement 1: UI Homepage Buttons -->
-    <button class="action-btn" id="btn-signin-gh" title="Sign in with GitHub">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <!-- Single dynamic GitHub button: Sign in → Upload from GitHub -->
+    <button class="action-btn" id="btn-gh-dynamic" title="Sign in with GitHub or upload from GitHub">
+      <!-- Icon and label are set by JS based on auth state -->
+      <svg id="gh-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
       </svg>
-      Sign in
-    </button>
-    <button class="action-btn action-btn-primary" id="btn-import-gh" title="Upload from GitHub directly">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
-      </svg>
-      Upload from GitHub
+      <span id="gh-btn-label">Sign in</span>
     </button>
     <button class="action-btn" id="btn-upload-local" title="Upload from local folder">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -481,13 +479,9 @@
 <!-- ── Tab Navigation Strip ────────────────────────────────────── -->
 <div class="tab-strip" role="tablist">
   <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="tab-overview"     data-tab="overview">Overview</button>
-  <!-- Requirement 2: Mermaid Architecture Tab -->
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-prompt"       data-tab="prompt">System Prompt</button>
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-architecture" data-tab="architecture">Architecture (Mermaid)</button>
-  <!-- Requirement 4: Files, Symbols, Call Graph with Ranking & Tags -->
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-files"        data-tab="files">Files & Layers</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-symbols"      data-tab="symbols">Symbols</button>
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-callgraph"    data-tab="callgraph">Call Graph</button>
-  <!-- Requirement 3: Top 100 Contributors & Semantic Audit -->
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-contributors" data-tab="contributors">Contributors (Top 100)</button>
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-semantic"     data-tab="semantic">Semantic Audit</button>
 </div>
@@ -532,22 +526,30 @@
         </div>
       </div>
 
-      <!-- AI Architecture Prompt Generator (Item 5) -->
-      <div class="section-card bento-col-8">
+      <!-- Repository Architecture Matrix & Summary -->
+      <div class="section-card bento-col-8" style="overflow-x:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
           <h3 style="display:flex; align-items:center; gap:0.5rem; color:#fff;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            AI Architecture System Prompt
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82d4" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            Repository Architecture Matrix
           </h3>
-          <button class="action-btn action-btn-primary" id="btn-copy-prompt">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            Copy Full AI Prompt
+          <button class="action-btn action-btn-primary" id="btn-open-summary" onclick="window.open(window.__SUMMARY_URL__,'_blank');">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open Summary &rarr;
           </button>
         </div>
-        <p style="font-size:0.83rem; color:var(--text-secondary); margin-bottom:1rem;">
-          Exhaustive LLM system context generated for <strong>ChatGPT, Claude 3.7 & Gemini 2.0</strong> with complete module topologies, critical hub files, and layer invariants.
-        </p>
-        <pre id="prompt-preview-box" style="background:#080d1a; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.85rem; font-size:0.78rem; color:#cbd5e1; max-height:180px; overflow-y:auto; white-space:pre-wrap;"></pre>
+        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; table-layout:fixed;">
+          <thead>
+            <tr>
+              <th style="color:var(--text-secondary); text-align:left; padding:0.4rem 0.6rem; border-bottom:1px solid rgba(255,255,255,0.08);">Layer</th>
+              <th style="color:var(--text-secondary); text-align:right; padding:0.4rem 0.6rem; border-bottom:1px solid rgba(255,255,255,0.08);">Files</th>
+              <th style="color:var(--text-secondary); text-align:right; padding:0.4rem 0.6rem; border-bottom:1px solid rgba(255,255,255,0.08);">Symbols</th>
+              <th style="color:var(--text-secondary); text-align:right; padding:0.4rem 0.6rem; border-bottom:1px solid rgba(255,255,255,0.08);">Avg Cx</th>
+            </tr>
+          </thead>
+          <tbody id="arch-matrix-tbody"></tbody>
+        </table>
+        <div id="arch-matrix-meta" style="margin-top:0.85rem; font-size:0.8rem; color:var(--text-secondary); display:flex; gap:1.25rem; flex-wrap:wrap;"></div>
       </div>
 
       <!-- Architecture Topology Preview (Mermaid) -->
@@ -568,7 +570,24 @@
     </div>
   </section>
 
-  <!-- ── 2. ARCHITECTURE TAB (Requirement 2: Full Interactive Mermaid Diagram) ── -->
+  <!-- ── SYSTEM PROMPT TAB ──────────────────────────────────────── -->
+  <section id="tab-prompt" class="tab-section" role="tabpanel">
+    <div class="section-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+        <div>
+          <h2 style="color:#ffffff; font-size:1.35rem; margin-bottom:0.25rem;">AI System Prompt</h2>
+          <p style="color:var(--text-secondary); font-size:0.85rem;">Exhaustive LLM context for ChatGPT, Claude &amp; Gemini — copy directly into your AI chat session</p>
+        </div>
+        <button class="action-btn action-btn-primary" id="btn-copy-prompt">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Full AI Prompt
+        </button>
+      </div>
+      <pre id="ai-prompt-text" style="background:#080d1a; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1.1rem; font-size:0.8rem; color:#cbd5e1; max-height:72vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word;"></pre>
+    </div>
+  </section>
+
+  <!-- ── ARCHITECTURE TAB ───────────────────────────────────────── -->
   <section id="tab-architecture" class="tab-section" role="tabpanel">
     <div class="section-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
@@ -591,101 +610,41 @@
     </div>
   </section>
 
-  <!-- ── 3. FILES TAB (Requirement 4: Layer Grouping, Ranking Tiers, 200+ Tags) ── -->
-  <section id="tab-files" class="tab-section" role="tabpanel">
-    <div class="section-card">
-      <div class="table-toolbar">
-        <input type="text" id="files-search" placeholder="Search file path, tags, layer…" style="min-width: 260px;" />
-        <select id="files-layer-filter">
-          <option value="">All Layers</option>
-          <option value="core">Core / Engine</option>
-          <option value="api">API / Routes</option>
-          <option value="data_model">Models & Schemas</option>
-          <option value="service">Services & Logic</option>
-          <option value="middleware">Middleware & Auth</option>
-          <option value="ui">UI & Presentation</option>
-          <option value="cli">CLI & Commands</option>
-          <option value="infra">Infra & Config</option>
-          <option value="util">Utilities</option>
-          <option value="test">Tests</option>
-        </select>
-        <select id="files-tier-filter">
-          <option value="">All Ranking Tiers</option>
-          <option value="Tier 1">Tier 1: Core Hub</option>
-          <option value="Tier 2">Tier 2: Business Critical</option>
-          <option value="Tier 3">Tier 3: Supporting</option>
-          <option value="Tier 4">Tier 4: Leaf / Utility</option>
-        </select>
-        <select id="files-tag-filter">
-          <option value="">All Tags (200+ Inbuilt)</option>
-        </select>
-      </div>
-
-      <table class="data-table" id="files-table">
-        <thead>
-          <tr>
-            <th data-col="rank"         data-type="num" style="width:60px;">Rank</th>
-            <th data-col="path"         data-type="str">File Path</th>
-            <th data-col="layer"        data-type="str">Layer</th>
-            <th data-col="ranking_tier" data-type="str">Tier</th>
-            <th data-col="in_degree"    data-type="num">In/Out</th>
-            <th data-col="tags"         data-type="str">Tags</th>
-            <th data-col="symbols_count"data-type="num">Symbols</th>
-            <th data-col="complexity"   data-type="num">Max Complexity</th>
-          </tr>
-        </thead>
-        <tbody id="files-tbody"></tbody>
-      </table>
-      <div id="files-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem;"></div>
-    </div>
-  </section>
-
-  <!-- ── 4. SYMBOLS TAB ── -->
-  <section id="tab-symbols" class="tab-section" role="tabpanel">
-    <div class="section-card">
-      <div class="table-toolbar">
-        <input type="text" id="symbols-search" placeholder="Search symbol name, tags, file…" style="min-width:260px;" />
-        <select id="symbols-kind-filter">
-          <option value="">All Kinds</option>
-          <option value="function">Function</option>
-          <option value="async_function">Async Function</option>
-          <option value="class">Class</option>
-        </select>
-        <select id="symbols-layer-filter">
-          <option value="">All Layers</option>
-          <option value="core">Core</option>
-          <option value="api">API</option>
-          <option value="data_model">Models</option>
-          <option value="service">Services</option>
-          <option value="middleware">Middleware</option>
-          <option value="cli">CLI</option>
-        </select>
-      </div>
-
-      <table class="data-table" id="symbols-table">
-        <thead>
-          <tr>
-            <th data-col="name"       data-type="str">Symbol</th>
-            <th data-col="kind"       data-type="str">Kind</th>
-            <th data-col="layer"      data-type="str">Layer</th>
-            <th data-col="file"       data-type="str">File</th>
-            <th data-col="line"       data-type="num">Line</th>
-            <th data-col="complexity" data-type="num">Complexity</th>
-            <th>Tags</th>
-          </tr>
-        </thead>
-        <tbody id="symbols-tbody"></tbody>
-      </table>
-      <div id="symbols-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem;"></div>
-    </div>
-  </section>
-
-  <!-- ── 5. CALL GRAPH TAB ── -->
+  <!-- ── CALL GRAPH TAB — Two-Panel Interactive Explorer ──────── -->
   <section id="tab-callgraph" class="tab-section" role="tabpanel">
-    <div class="section-card">
-      <h3 style="margin-bottom:1rem; color:#ffffff;">Call Flow Distribution</h3>
-      <div style="height:380px;">
-        <canvas id="callgraph-chart"></canvas>
+    <div class="section-card" style="overflow-x:auto;">
+      <div style="display:flex; gap:0; min-height:520px;">
+        <!-- Left Panel: Top callers list -->
+        <div style="width:40%; border-right:1px solid rgba(255,255,255,0.08); padding-right:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="color:#fff; font-size:1rem;">Top Callers</h3>
+            <span style="font-size:0.75rem; color:var(--text-secondary);">by out-degree</span>
+          </div>
+          <input type="text" id="cg-search" placeholder="Filter callers…" style="padding:0.4rem 0.75rem; border-radius:7px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:var(--text-primary); font-size:0.83rem; outline:none;" />
+          <div id="cg-caller-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:2px;"></div>
+        </div>
+        <!-- Right Panel: Callee breakdown -->
+        <div style="width:60%; padding-left:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
+          <div>
+            <h3 style="color:#fff; font-size:1rem;" id="cg-selected-title">Select a caller to inspect →</h3>
+            <p style="font-size:0.78rem; color:var(--text-secondary);" id="cg-selected-sub"></p>
+          </div>
+          <!-- Mini frequency distribution bar chart -->
+          <div id="cg-freq-chart" style="display:none; padding:0.5rem 0;"></div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="table-layout:fixed; width:100%;" id="cg-callee-table">
+              <colgroup><col style="width:44%"><col style="width:30%"><col style="width:14%"><col style="width:12%"></colgroup>
+              <thead>
+                <tr>
+                  <th>Callee</th><th>File</th><th>Layer</th><th style="text-align:right;">Calls</th>
+                </tr>
+              </thead>
+              <tbody id="cg-callee-tbody">
+                <tr><td colspan="4" style="text-align:center; color:var(--text-secondary); padding:2rem;">Click a caller on the left.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -757,29 +716,36 @@
 
 </div>
 
-<!-- ── Modals (Requirement 1 & 5) ──────────────────────────────── -->
-<div class="modal-overlay" id="modal-signin">
+<!-- ── GitHub Token Modal ───────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-gh-token">
   <div class="modal-card">
     <div class="modal-header">
-      <h3 class="modal-title">GitHub Authentication</h3>
-      <button class="modal-close" onclick="closeModal('modal-signin')">&times;</button>
+      <h3 class="modal-title" style="display:flex;align-items:center;gap:0.6rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#60a5fa;">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        Paste your GitHub Token
+      </h3>
+      <button class="modal-close" onclick="closeModal('modal-gh-token')">&times;</button>
     </div>
-    <div style="margin-bottom:1.25rem; font-size:0.88rem; color:var(--text-secondary);">
-      <p style="margin-bottom:0.75rem;">Signed in via GitHub CLI (keyring authentication active).</p>
-      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.85rem; display:flex; align-items:center; gap:0.75rem;">
-        <div style="width:36px; height:36px; border-radius:50%; background:#2563eb; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff;">GH</div>
-        <div>
-          <div style="color:#ffffff; font-weight:600;">aeaayushdeep36-ship-it</div>
-          <div style="font-size:0.75rem; color:#86efac;">Active • Scopes: repo, workflow, gist</div>
-        </div>
-      </div>
+    <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.6;">
+      A GitHub token page just opened in a new tab.<br/>
+      Copy the generated token and paste it below to activate<br/>
+      <strong style="color:#93c5fd;">Upload from GitHub</strong>.
+    </p>
+    <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+      style="width:100%; padding:0.65rem 0.9rem; border-radius:8px; border:1px solid rgba(255,255,255,0.18); background:#080d1a; color:#fff; font-size:0.9rem; outline:none; margin-bottom:1rem;" />
+    <div style="display:flex; gap:0.6rem;">
+      <button class="action-btn action-btn-primary" style="flex:1; justify-content:center;" id="btn-save-gh-token">
+        Save Token &amp; Sign In
+      </button>
+      <button class="action-btn" style="justify-content:center;" onclick="closeModal('modal-gh-token')">Cancel</button>
     </div>
-    <button class="action-btn action-btn-primary" style="width:100%; justify-content:center;" onclick="closeModal('modal-signin'); showToast('GitHub account verified!');">
-      Continue with Active Account
-    </button>
+    <p style="font-size:0.72rem; color:var(--text-secondary); margin-top:0.85rem;">Token is stored only in your browser&apos;s localStorage and never sent to any server.</p>
   </div>
 </div>
 
+<!-- ── GitHub Import Modal ──────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-import-gh">
   <div class="modal-card">
     <div class="modal-header">
@@ -809,12 +775,13 @@
 
 <!-- ============================================================
      DATA INJECTION
-     window.__COMPASS_DATA__ holds the full AnalysisResult JSON.
      The `tojson` filter HTML-escapes <, >, & inside JSON strings.
      ============================================================ -->
 <script>
   window.__COMPASS_DATA__ = {{ data_json | tojson }};
   window.__REPO_NAME__    = {{ repo_name | tojson }};
+  window.__SUMMARY_URL__  = {{ summary_url | tojson }};
+  window.__GITHUB_SLUG__  = {{ github_slug | tojson }};
 </script>
 
 <!-- ============================================================
@@ -852,19 +819,61 @@
     document.getElementById(id).classList.remove('active');
   };
 
-  document.getElementById('btn-signin-gh').addEventListener('click', function() {
-    document.getElementById('modal-signin').classList.add('active');
+  // ── Dynamic GitHub Button (Sign in → Upload from GitHub) ──────
+  function updateGhButton() {
+    var token = localStorage.getItem('cc_gh_token');
+    var btn   = document.getElementById('btn-gh-dynamic');
+    var label = document.getElementById('gh-btn-label');
+    var icon  = document.getElementById('gh-btn-icon');
+    if (token) {
+      btn.classList.add('action-btn-primary');
+      label.textContent = 'Upload from GitHub';
+      icon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>';
+      icon.setAttribute('viewBox','0 0 24 24');
+      icon.setAttribute('fill','none');
+      icon.setAttribute('stroke','currentColor');
+      icon.setAttribute('stroke-width','2');
+    } else {
+      btn.classList.remove('action-btn-primary');
+      label.textContent = 'Sign in';
+    }
+  }
+  updateGhButton();
+
+  document.getElementById('btn-gh-dynamic').addEventListener('click', function() {
+    var token = localStorage.getItem('cc_gh_token');
+    if (!token) {
+      // Open GitHub token creation page in a new tab, then show paste modal
+      window.open(
+        'https://github.com/settings/tokens/new?scopes=repo,read:org&description=CodeCompass',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      document.getElementById('gh-token-input').value = '';
+      document.getElementById('modal-gh-token').classList.add('active');
+    } else {
+      document.getElementById('modal-import-gh').classList.add('active');
+    }
   });
 
-  document.getElementById('btn-import-gh').addEventListener('click', function() {
-    document.getElementById('modal-import-gh').classList.add('active');
+  document.getElementById('btn-save-gh-token').addEventListener('click', function() {
+    var t = document.getElementById('gh-token-input').value.trim();
+    if (!t) { showToast('Please paste your token first.'); return; }
+    localStorage.setItem('cc_gh_token', t);
+    closeModal('modal-gh-token');
+    updateGhButton();
+    showToast('Signed in to GitHub!');
+  });
+
+  // Allow Enter key to save token
+  document.getElementById('gh-token-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('btn-save-gh-token').click();
   });
 
   window.triggerGitHubImport = function() {
     var repo = document.getElementById('import-gh-input').value.trim();
     closeModal('modal-import-gh');
     showToast('Analyzing repository ' + repo + '…');
-    // Reload with query param or instructions
   };
 
   document.getElementById('btn-upload-local').addEventListener('click', function() {
@@ -890,6 +899,7 @@
     });
     if (!_tabInited[id]) {
       _tabInited[id] = true;
+      if (id === 'prompt')       initSystemPromptTab();
       if (id === 'architecture') initMermaidDiagram();
       if (id === 'callgraph')    initCallGraphChart();
       if (id === 'contributors') initContributorsTab();
@@ -1006,19 +1016,63 @@
       container.appendChild(card);
     });
 
-    // Scorecard
+    // Health Scorecard
     var hScore = repoStats.health_score || 96;
     document.getElementById('health-inner').textContent = String(hScore);
     document.getElementById('overview-dead-ratio').textContent = (repoStats.dead_code_ratio || 0.0) + '%';
 
-    // AI Prompt Box
-    var promptEl = document.getElementById('prompt-preview-box');
-    promptEl.textContent = aiPrompt || '# AI System Directive for ' + (window.__REPO_NAME__ || 'Repository');
-    document.getElementById('btn-copy-prompt').addEventListener('click', function() {
-      navigator.clipboard.writeText(aiPrompt || promptEl.textContent);
-      showToast('AI System Prompt copied to clipboard!');
+    // Architecture Matrix: layer breakdown
+    var layerLabels = {
+      core:'Core / Engine', api:'API / Routes', data_model:'Models & Schemas',
+      service:'Services & Logic', middleware:'Middleware & Auth', ui:'UI & Presentation',
+      cli:'CLI & Commands', infra:'Infra & Config', util:'Utilities', test:'Tests'
+    };
+    var layerFileCount = {}, layerSymCount = {}, layerCxSum = {}, layerCxN = {};
+    files.forEach(function(f) {
+      var l = f.layer || 'core';
+      layerFileCount[l] = (layerFileCount[l] || 0) + 1;
     });
+    symbols.forEach(function(s) {
+      var l = s.layer || 'core';
+      layerSymCount[l] = (layerSymCount[l] || 0) + 1;
+      layerCxSum[l]  = (layerCxSum[l]  || 0) + (s.complexity || 1);
+      layerCxN[l]    = (layerCxN[l]    || 0) + 1;
+    });
+    var matrixTbody = document.getElementById('arch-matrix-tbody');
+    if (matrixTbody) {
+      Object.keys(layerLabels).forEach(function(k) {
+        if (!layerFileCount[k]) return;
+        var tr = document.createElement('tr');
+        var avgCx = layerCxN[k] ? (layerCxSum[k] / layerCxN[k]).toFixed(1) : '–';
+        tr.innerHTML =
+          '<td style="padding:0.35rem 0.6rem; color:#e2e8f0;">' + (layerLabels[k] || k) + '</td>' +
+          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#93c5fd;">' + (layerFileCount[k] || 0) + '</td>' +
+          '<td style="padding:0.35rem 0.6rem; text-align:right; color:#c4b5fd;">' + (layerSymCount[k] || 0) + '</td>' +
+          '<td style="padding:0.35rem 0.6rem; text-align:right;">' + avgCx + '</td>';
+        matrixTbody.appendChild(tr);
+      });
+    }
+    var metaEl = document.getElementById('arch-matrix-meta');
+    if (metaEl) {
+      metaEl.innerHTML =
+        '<span>Dominant ecosystem: <strong style="color:#93c5fd;">' + topLang.toUpperCase() + '</strong></span>' +
+        '<span>Symbol density: <strong style="color:#c4b5fd;">' + (totalFiles ? (totalSymbols / totalFiles).toFixed(1) : '0') + ' sym/file</strong></span>' +
+        '<span>Total layers: <strong style="color:#6ee7b7;">' + Object.keys(layerFileCount).length + '</strong></span>';
+    }
   }());
+
+  // ── SYSTEM PROMPT TAB ─────────────────────────────────────────
+  function initSystemPromptTab() {
+    var preEl = document.getElementById('ai-prompt-text');
+    if (preEl) preEl.textContent = aiPrompt || '# AI System Directive for ' + (window.__REPO_NAME__ || 'Repository');
+    var copyBtn = document.getElementById('btn-copy-prompt');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        navigator.clipboard.writeText(aiPrompt || '');
+        showToast('AI System Prompt copied to clipboard!');
+      });
+    }
+  }
 
   // ── 6. DYNAMIC MERMAID LOADER & DIAGRAM RENDERER ───────────────
   function loadMermaid(callback) {
@@ -1043,6 +1097,15 @@
     document.head.appendChild(script);
   }
 
+  function _applySvgSize(container, minH) {
+    var svg = container.querySelector('svg');
+    if (svg) {
+      svg.style.width = '100%';
+      svg.style.minHeight = (minH || 480) + 'px';
+      svg.style.height = 'auto';
+    }
+  }
+
   var _currentZoom = 1;
   function initMermaidDiagram() {
     loadMermaid(function() {
@@ -1050,12 +1113,21 @@
       var canvas = document.getElementById('main-mermaid-canvas');
       var overviewCanvas = document.getElementById('overview-mermaid-svg');
 
+      // Render main diagram first, then overview sequentially to avoid Mermaid
+      // internal ID conflicts when two renders run concurrently.
       try {
         window.mermaid.render('mermaid-svg-main', code).then(function(res) {
           canvas.innerHTML = res.svg;
-        });
-        window.mermaid.render('mermaid-svg-ov', code).then(function(res) {
-          overviewCanvas.innerHTML = res.svg;
+          _applySvgSize(canvas, 600);
+          // Render overview only after main is done
+          return window.mermaid.render('mermaid-svg-ov', code);
+        }).then(function(res) {
+          if (res) {
+            overviewCanvas.innerHTML = res.svg;
+            _applySvgSize(overviewCanvas, 360);
+          }
+        }).catch(function(err) {
+          canvas.textContent = 'Diagram render error: ' + err;
         });
       } catch (err) {
         canvas.textContent = code;
@@ -1093,155 +1165,7 @@
   // Trigger overview diagram render on initial load
   setTimeout(initMermaidDiagram, 100);
 
-  // ── 7. FILES TAB BUILDER (Requirement 4) ──────────────────────
-  (function buildFilesTab() {
-    var tbody = document.getElementById('files-tbody');
-    var paginationEl = document.getElementById('files-pagination');
-    var searchEl = document.getElementById('files-search');
-    var layerEl  = document.getElementById('files-layer-filter');
-    var tierEl   = document.getElementById('files-tier-filter');
-    var tagEl    = document.getElementById('files-tag-filter');
-
-    // Populate all unique tags into filter
-    var allTags = new Set();
-    files.forEach(function(f) { (f.tags || []).forEach(function(t) { allTags.add(t); }); });
-    Array.from(allTags).sort().forEach(function(t) {
-      var opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      tagEl.appendChild(opt);
-    });
-
-    var filtered = files.slice();
-
-    function renderPage(items) {
-      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-      items.forEach(function(f) {
-        var tr = document.createElement('tr');
-        tr.appendChild(td('#' + (f.rank || 1)));
-
-        var pathTd = document.createElement('td');
-        pathTd.textContent = f.path;
-        pathTd.style.fontWeight = '500';
-        tr.appendChild(pathTd);
-
-        var layerCls = 'badge-' + (f.layer === 'core' ? 'core' : f.layer === 'api' ? 'api' : f.layer === 'data_model' ? 'model' : 'service');
-        tr.appendChild(tdBadge(f.layer || 'core', layerCls));
-
-        var tierCls = (f.ranking_tier || '').includes('Tier 1') ? 'badge-tier1' : 'badge-tier2';
-        tr.appendChild(tdBadge(f.ranking_tier || 'Tier 3: Supporting', tierCls));
-
-        tr.appendChild(td((f.in_degree || 0) + ' / ' + (f.out_degree || 0)));
-
-        var tagsTd = document.createElement('td');
-        var cloud = document.createElement('div');
-        cloud.className = 'tag-cloud';
-        (f.tags || []).slice(0, 4).forEach(function(t) {
-          var pill = document.createElement('span');
-          pill.className = 'tag-pill';
-          pill.textContent = t;
-          pill.onclick = function() { tagEl.value = t; refilter(); };
-          cloud.appendChild(pill);
-        });
-        tagsTd.appendChild(cloud);
-        tr.appendChild(tagsTd);
-
-        tr.appendChild(td(f.symbols_count || 0));
-        tr.appendChild(tdComplexity(f.complexity || 1));
-
-        tbody.appendChild(tr);
-      });
-    }
-
-    function refilter() {
-      var q = searchEl.value.toLowerCase();
-      var layer = layerEl.value;
-      var tier = tierEl.value;
-      var tag = tagEl.value;
-
-      filtered = files.filter(function(f) {
-        var matchQ = !q || f.path.toLowerCase().includes(q) || (f.tags || []).some(function(t) { return t.toLowerCase().includes(q); });
-        var matchLayer = !layer || f.layer === layer;
-        var matchTier = !tier || (f.ranking_tier || '').includes(tier);
-        var matchTag = !tag || (f.tags || []).includes(tag);
-        return matchQ && matchLayer && matchTier && matchTag;
-      });
-
-      paginate(filtered, 0, paginationEl, renderPage);
-    }
-
-    searchEl.addEventListener('input', refilter);
-    layerEl.addEventListener('change', refilter);
-    tierEl.addEventListener('change', refilter);
-    tagEl.addEventListener('change', refilter);
-
-    paginate(filtered, 0, paginationEl, renderPage);
-  }());
-
-  // ── 8. SYMBOLS TAB BUILDER ────────────────────────────────────
-  (function buildSymbolsTab() {
-    var tbody = document.getElementById('symbols-tbody');
-    var paginationEl = document.getElementById('symbols-pagination');
-    var searchEl = document.getElementById('symbols-search');
-    var kindEl   = document.getElementById('symbols-kind-filter');
-    var layerEl  = document.getElementById('symbols-layer-filter');
-
-    var filtered = symbols.slice();
-
-    function renderPage(items) {
-      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-      items.forEach(function(s) {
-        var tr = document.createElement('tr');
-        var nameTd = document.createElement('td');
-        nameTd.textContent = s.name;
-        nameTd.style.fontWeight = '600';
-        tr.appendChild(nameTd);
-
-        tr.appendChild(tdBadge(s.kind, s.kind === 'class' ? 'badge-model' : 'badge-api'));
-        tr.appendChild(tdBadge(s.layer || 'core', 'badge-core'));
-        tr.appendChild(td(s.file));
-        tr.appendChild(td(s.line));
-        tr.appendChild(tdComplexity(s.complexity));
-
-        var tagsTd = document.createElement('td');
-        var cloud = document.createElement('div');
-        cloud.className = 'tag-cloud';
-        (s.tags || []).slice(0, 3).forEach(function(t) {
-          var pill = document.createElement('span');
-          pill.className = 'tag-pill';
-          pill.textContent = t;
-          cloud.appendChild(pill);
-        });
-        tagsTd.appendChild(cloud);
-        tr.appendChild(tagsTd);
-
-        tbody.appendChild(tr);
-      });
-    }
-
-    function refilter() {
-      var q = searchEl.value.toLowerCase();
-      var kind = kindEl.value;
-      var layer = layerEl.value;
-
-      filtered = symbols.filter(function(s) {
-        var matchQ = !q || s.name.toLowerCase().includes(q) || (s.file || '').toLowerCase().includes(q);
-        var matchKind = !kind || s.kind === kind;
-        var matchLayer = !layer || s.layer === layer;
-        return matchQ && matchKind && matchLayer;
-      });
-
-      paginate(filtered, 0, paginationEl, renderPage);
-    }
-
-    searchEl.addEventListener('input', refilter);
-    kindEl.addEventListener('change', refilter);
-    layerEl.addEventListener('change', refilter);
-
-    paginate(filtered, 0, paginationEl, renderPage);
-  }());
-
-  // ── 9. CONTRIBUTORS TAB (Requirement 3: Top 100 with Commits & Avatars) ──
+  // ── CONTRIBUTORS TAB ─────────────────────────────────────────
   var _contribInited = false;
   function initContributorsTab() {
     if (_contribInited) return;
@@ -1317,39 +1241,122 @@
     });
   }
 
-  // ── 10. CALL GRAPH TAB ────────────────────────────────────────
+  // ── CALL GRAPH TAB — Two-Panel Explorer ─────────────────────
   function initCallGraphChart() {
-    var canvas = document.getElementById('callgraph-chart');
-    if (!canvas) return;
-
     var callerMap = {};
-    callEdges.forEach(function (e) {
-      callerMap[e.caller] = (callerMap[e.caller] || 0) + 1;
-    });
-    var sorted = Object.keys(callerMap).sort(function (a, b) {
-      return callerMap[b] - callerMap[a];
-    }).slice(0, 15);
+    var callerCallees = {};
+    // Build symbol-to-layer lookup
+    var symLayer = {};
+    var symFile  = {};
+    symbols.forEach(function(s) { symLayer[s.name] = s.layer; symFile[s.name] = s.file; });
 
-    new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: sorted,
-        datasets: [{
-          label: 'Callees Out-Degree',
-          data: sorted.map(function(k) { return callerMap[k]; }),
-          backgroundColor: 'rgba(59, 130, 212, 0.7)',
-          borderRadius: 6,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-          y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-        }
-      }
+    callEdges.forEach(function(e) {
+      callerMap[e.caller] = (callerMap[e.caller] || 0) + 1;
+      if (!callerCallees[e.caller]) callerCallees[e.caller] = [];
+      callerCallees[e.caller].push(e.callee);
+    });
+
+    var sortedCallers = Object.keys(callerMap).sort(function(a, b) {
+      return callerMap[b] - callerMap[a];
+    }).slice(0, 80);
+
+    var listEl  = document.getElementById('cg-caller-list');
+    var titleEl = document.getElementById('cg-selected-title');
+    var subEl   = document.getElementById('cg-selected-sub');
+    var tbody   = document.getElementById('cg-callee-tbody');
+    var searchEl = document.getElementById('cg-search');
+    var selected = null;
+
+    var LAYER_BADGE_CLS = {
+      core:'badge-core', api:'badge-api', data_model:'badge-model',
+      service:'badge-service', middleware:'badge-middleware', ui:'badge-ui',
+      cli:'badge-cli', infra:'badge-infra', util:'badge-util', test:'badge-test'
+    };
+
+    var freqChartEl = document.getElementById('cg-freq-chart');
+
+    function renderFreqChart(aggregated) {
+      // aggregated: [{name, count, layer}] sorted desc by count, top 10
+      var top = aggregated.slice(0, 10);
+      if (!top.length) { freqChartEl.style.display = 'none'; return; }
+      var maxCount = top[0].count;
+      var bars = top.map(function(item) {
+        var pct = Math.round((item.count / maxCount) * 100);
+        var label = item.name.length > 18 ? item.name.slice(0, 17) + '…' : item.name;
+        return '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:3px;">' +
+          '<span style="width:120px; font-size:0.72rem; color:var(--text-secondary); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0;" title="' + item.name + '">' + label + '</span>' +
+          '<div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">' +
+            '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg,#3b82d4,#8b5cf6); border-radius:3px;"></div>' +
+          '</div>' +
+          '<span style="font-size:0.72rem; color:#93c5fd; width:28px; text-align:right; flex-shrink:0;">' + item.count + '</span>' +
+          '</div>';
+      }).join('');
+      freqChartEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600;">Top callee distribution</div>' + bars;
+      freqChartEl.style.display = 'block';
+    }
+
+    function renderCallees(caller) {
+      selected = caller;
+      var rawCallees = callerCallees[caller] || [];
+      titleEl.textContent = caller;
+
+      // Aggregate: count occurrences of each callee name
+      var freq = {};
+      rawCallees.forEach(function(callee) { freq[callee] = (freq[callee] || 0) + 1; });
+      var aggregated = Object.keys(freq).map(function(name) {
+        return { name: name, count: freq[name], layer: symLayer[name] || 'core', file: symFile[name] || '' };
+      }).sort(function(a, b) { return b.count - a.count; });
+
+      var unique = aggregated.length;
+      var totalCalls = rawCallees.length;
+      subEl.textContent = unique + ' unique callee(s) · ' + totalCalls + ' total call(s)';
+
+      // Mini frequency chart
+      renderFreqChart(aggregated);
+
+      // Table: one row per unique callee, with call-count badge
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      aggregated.slice(0, 100).forEach(function(item) {
+        var tr = document.createElement('tr');
+        var layer = item.layer;
+        var file  = item.file.split('/').pop() || item.file || '–';
+        var countBadge = item.count > 1
+          ? ' <span style="font-size:0.68rem;background:rgba(139,92,246,0.25);color:#c4b5fd;border-radius:4px;padding:1px 5px;margin-left:3px;">×' + item.count + '</span>'
+          : '';
+        tr.innerHTML =
+          '<td style="font-weight:600; color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0;" title="' + item.name + '">' + item.name + countBadge + '</td>' +
+          '<td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0; color:var(--text-secondary); font-size:0.8rem;" title="' + item.file + '">' + file + '</td>' +
+          '<td><span class="badge ' + (LAYER_BADGE_CLS[layer] || 'badge-core') + '">' + layer + '</span></td>' +
+          '<td style="text-align:right; color:#93c5fd; font-weight:600; font-size:0.82rem;">' + item.count + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCallerList(list) {
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+      list.forEach(function(c) {
+        var row = document.createElement('div');
+        row.style.cssText = 'padding:0.45rem 0.75rem; border-radius:7px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:0.84rem; transition:background 0.12s;';
+        row.innerHTML = '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%; color:#e2e8f0;" title="' + c + '">' + c + '</span>' +
+          '<span style="color:var(--text-secondary); font-size:0.75rem; flex-shrink:0; margin-left:0.5rem;">' + (callerMap[c] || 0) + '</span>';
+        row.addEventListener('mouseenter', function() { row.style.background = 'rgba(59,130,212,0.12)'; });
+        row.addEventListener('mouseleave', function() { row.style.background = selected === c ? 'rgba(59,130,212,0.2)' : ''; });
+        row.addEventListener('click', function() {
+          document.querySelectorAll('#cg-caller-list > div').forEach(function(r) { r.style.background = ''; });
+          row.style.background = 'rgba(59,130,212,0.2)';
+          renderCallees(c);
+        });
+        listEl.appendChild(row);
+      });
+    }
+
+    renderCallerList(sortedCallers);
+    if (sortedCallers.length) renderCallees(sortedCallers[0]);
+
+    searchEl.addEventListener('input', function() {
+      var q = searchEl.value.toLowerCase();
+      var filtered = sortedCallers.filter(function(c) { return c.toLowerCase().includes(q); });
+      renderCallerList(filtered);
     });
   }
 
