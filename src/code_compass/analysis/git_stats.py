@@ -12,6 +12,19 @@ from pathlib import Path
 from code_compass.analysis.models import ContributorStat
 
 
+def detect_github_slug(root: Path) -> str:
+    """Return the GitHub slug (``"owner/repo"``) for the repository at *root*.
+
+    Checks (in order): git remote URL, ``pyproject.toml``, ``package.json``,
+    ``CITATION.cff``, ``README.md``, then falls back to a folder-name heuristic
+    (e.g. ``fastapi-master`` → ``"fastapi/fastapi"``).
+
+    Returns an empty string if the slug cannot be determined.
+    """
+    pair = _detect_github_slug(root)
+    return f"{pair[0]}/{pair[1]}" if pair else ""
+
+
 def _detect_github_slug(root: Path) -> tuple[str, str] | None:
     """Attempt to detect the GitHub owner and repo name from git remote or metadata."""
     # 1. Try git remote

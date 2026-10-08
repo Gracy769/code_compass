@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Compass — Summary — {{ repo_name }}</title>
+  <style>
+    /* ============================================================
+       CODE COMPASS SUMMARY — dark glassmorphic design (shared tokens)
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --glass-bg:       rgba(255, 255, 255, 0.05);
+      --glass-bg-nav:   rgba(13, 17, 23, 0.85);
+      --glass-border:   rgba(255, 255, 255, 0.12);
+      --blur-radius:    16px;
+      --clay-shadow:
+        0 1px 0 0 rgba(255,255,255,0.18) inset,
+        0 -1px 0 0 rgba(0,0,0,0.30) inset,
+        0 8px 24px -4px rgba(0,0,0,0.55),
+        0 2px 6px -1px rgba(0,0,0,0.40);
+      --clay-highlight:
+        0 1px 0 0 rgba(255,255,255,0.22) inset,
+        0 -1px 0 0 rgba(0,0,0,0.35) inset,
+        0 12px 32px -4px rgba(59,130,212,0.30),
+        0 4px 10px -2px rgba(0,0,0,0.50);
+      --accent:         #3b82d4;
+      --accent-hover:   #60a5fa;
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --danger:         #f87171;
+      --warn:           #fbbf24;
+      --success:        #86efac;
+      --purple:         #c084fc;
+      --radius-card:    1.25rem;
+      --radius-btn:     1.2rem;
+    }
+
+    body {
+      background-color: #0b0f19;
+      background-image:
+        radial-gradient(ellipse 90% 60% at 50% -10%, rgba(59, 130, 212, 0.16), transparent),
+        radial-gradient(ellipse 50% 40% at 90% 90%, rgba(139, 92, 246, 0.08), transparent),
+        linear-gradient(180deg, #0b0f19 0%, #080c14 100%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Nav Bar ────────────────────────────────────────────────── */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1.75rem;
+      background: var(--glass-bg-nav);
+      border-bottom: 1px solid var(--glass-border);
+      backdrop-filter: blur(var(--blur-radius));
+      -webkit-backdrop-filter: blur(var(--blur-radius));
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-left { display: flex; align-items: center; gap: 0.75rem; }
+    .app-logo {
+      width: 28px; height: 28px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #3b82d4, #8b5cf6);
+      border-radius: 8px; box-shadow: 0 2px 8px rgba(59,130,212,0.4);
+    }
+    .app-name { font-weight: 700; font-size: 1.15rem; color: #ffffff; letter-spacing: -0.01em; }
+    .repo-badge {
+      font-size: 0.8rem; padding: 0.2rem 0.65rem; border-radius: 20px;
+      background: rgba(59, 130, 212, 0.15); border: 1px solid rgba(59, 130, 212, 0.3);
+      color: #93c5fd; font-weight: 500; max-width: 320px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .action-btn {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.45rem 0.95rem; border-radius: 8px; font-size: 0.82rem;
+      font-weight: 600; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: var(--text-primary);
+      transition: all 0.18s ease;
+      box-shadow: var(--clay-shadow);
+      text-decoration: none;
+    }
+    .action-btn:hover {
+      background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25);
+      transform: translateY(-1px);
+    }
+
+    /* ── Tab Strip ──────────────────────────────────────────────── */
+    .tab-strip {
+      display: flex; gap: 0.5rem; padding: 0.75rem 1.75rem 0;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(13, 17, 23, 0.65); backdrop-filter: blur(8px);
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 0.55rem 1.25rem;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--radius-btn) var(--radius-btn) 0 0;
+      border-bottom: none;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-secondary);
+      font-family: inherit; font-size: 0.88rem; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+      box-shadow: var(--clay-shadow); transition: all 0.18s ease;
+    }
+    .tab-btn:hover { background: rgba(59,130,212,0.12); color: var(--text-primary); transform: translateY(-2px); }
+    .tab-btn.active {
+      background: linear-gradient(180deg, rgba(59,130,212,0.22) 0%, rgba(59,130,212,0.08) 100%);
+      color: var(--accent); font-weight: 600;
+      border-color: rgba(59,130,212,0.4);
+      box-shadow: 0 8px 20px -4px rgba(59,130,212,0.35);
+    }
+
+    /* ── Content Area ───────────────────────────────────────────── */
+    .tab-content { padding: 1.75rem; max-width: 1600px; margin: 0 auto; }
+    .tab-section { display: none; }
+    .tab-section.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Section Cards ──────────────────────────────────────────── */
+    .section-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-card);
+      padding: 1.5rem; margin-bottom: 1.5rem;
+      backdrop-filter: blur(var(--blur-radius));
+      box-shadow: var(--clay-shadow);
+      overflow-x: auto;
+    }
+
+    /* ── Toolbar ────────────────────────────────────────────────── */
+    .table-toolbar {
+      display: flex; flex-wrap: wrap; gap: 0.75rem;
+      align-items: center; margin-bottom: 1.25rem;
+    }
+    .table-toolbar input[type="text"], .table-toolbar select {
+      padding: 0.45rem 0.85rem; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; background: rgba(0,0,0,0.35);
+      color: var(--text-primary); font-family: inherit; font-size: 0.85rem; outline: none;
+    }
+    .table-toolbar input[type="text"]:focus, .table-toolbar select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,130,212,0.25);
+    }
+    .toggle-btn {
+      padding: 0.35rem 0.85rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: var(--text-primary);
+      transition: all 0.15s ease;
+    }
+    .toggle-btn:hover { background: rgba(59,130,212,0.2); border-color: var(--accent); }
+    .toggle-btn.active { background: rgba(59,130,212,0.3); border-color: var(--accent); color: #93c5fd; }
+
+    /* ── Tables ─────────────────────────────────────────────────── */
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 0.86rem;
+      table-layout: fixed;
+    }
+    .data-table th, .data-table td {
+      padding: 0.65rem 0.95rem; text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .data-table th { color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .data-table td.path-cell {
+      max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .data-table td.path-cell a { color: #93c5fd; text-decoration: none; }
+    .data-table td.path-cell a:hover { text-decoration: underline; }
+
+    /* ── Group Headers ──────────────────────────────────────────── */
+    .group-header-row td {
+      background: rgba(59,130,212,0.08); border-bottom: 1px solid rgba(59,130,212,0.2);
+      font-weight: 700; color: #93c5fd; cursor: pointer; user-select: none;
+      padding: 0.5rem 0.95rem; position: sticky; top: 0; z-index: 2;
+    }
+    .group-header-row td:hover { background: rgba(59,130,212,0.14); }
+    .group-chevron { display: inline-block; transition: transform 0.2s ease; margin-right: 0.4rem; }
+    .group-chevron.collapsed { transform: rotate(-90deg); }
+
+    /* ── Badges ─────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 0.18rem 0.55rem; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .badge-core     { background: rgba(59,130,212,0.2);  color: #93c5fd;  border: 1px solid rgba(59,130,212,0.35); }
+    .badge-api      { background: rgba(16,185,129,0.2);  color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.35); }
+    .badge-model    { background: rgba(139,92,246,0.2);  color: #c4b5fd;  border: 1px solid rgba(139,92,246,0.35); }
+    .badge-service  { background: rgba(245,158,11,0.2);  color: #fcd34d;  border: 1px solid rgba(245,158,11,0.35); }
+    .badge-middleware{ background: rgba(239,68,68,0.15); color: #fca5a5;  border: 1px solid rgba(239,68,68,0.3); }
+    .badge-ui       { background: rgba(236,72,153,0.2);  color: #f472b6;  border: 1px solid rgba(236,72,153,0.35); }
+    .badge-cli      { background: rgba(20,184,166,0.2);  color: #5eead4;  border: 1px solid rgba(20,184,166,0.35); }
+    .badge-infra    { background: rgba(100,116,139,0.2); color: #94a3b8;  border: 1px solid rgba(100,116,139,0.35); }
+    .badge-util     { background: rgba(156,163,175,0.15);color: #d1d5db;  border: 1px solid rgba(156,163,175,0.3); }
+    .badge-test     { background: rgba(132,204,22,0.15); color: #bef264;  border: 1px solid rgba(132,204,22,0.3); }
+    .badge-tier1    { background: linear-gradient(135deg,rgba(37,99,235,0.4),rgba(59,130,212,0.2)); color: #bfdbfe; font-weight:700; border:1px solid rgba(96,165,250,0.5); }
+    .badge-tier2    { background: rgba(245,158,11,0.15); color: #fde68a;  border: 1px solid rgba(245,158,11,0.3); }
+    .badge-tier3    { background: rgba(100,116,139,0.15);color: #94a3b8;  border: 1px solid rgba(100,116,139,0.3); }
+    .badge-tier4    { background: rgba(55,65,81,0.3);    color: #6b7280;  border: 1px solid rgba(55,65,81,0.5); }
+    .badge-function { background: rgba(59,130,212,0.15); color: #93c5fd;  border: 1px solid rgba(59,130,212,0.3); }
+    .badge-async    { background: rgba(139,92,246,0.15); color: #c4b5fd;  border: 1px solid rgba(139,92,246,0.3); }
+    .badge-class    { background: rgba(16,185,129,0.15); color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.3); }
+
+    /* ── Tag pills ──────────────────────────────────────────────── */
+    .tag-pill {
+      font-size: 0.72rem; padding: 0.2rem 0.55rem; border-radius: 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-secondary); cursor: pointer; transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tag-pill:hover, .tag-pill.active {
+      background: rgba(59,130,212,0.22); border-color: rgba(59,130,212,0.45); color: #93c5fd;
+    }
+
+    /* ── Complexity colours ──────────────────────────────────────── */
+    .complexity-high { color: var(--danger); font-weight: 600; }
+    .complexity-mid  { color: var(--warn);   font-weight: 500; }
+    .complexity-low  { color: var(--success);}
+
+    /* ── Pagination ─────────────────────────────────────────────── */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 1.1rem; font-size: 0.84rem; color: var(--text-secondary);
+    }
+    .pagination button {
+      padding: 0.35rem 0.85rem; border-radius: 7px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: var(--text-primary); transition: all 0.15s ease;
+    }
+    .pagination button:disabled { opacity: 0.35; cursor: default; }
+    .pagination button:not(:disabled):hover { background: rgba(59,130,212,0.2); border-color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation Bar ────────────────────────────────────────────── -->
+<header class="nav-bar">
+  <div class="nav-left">
+    <div class="app-logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+      </svg>
+    </div>
+    <span class="app-name">Code Compass</span>
+    <span class="repo-badge">{{ repo_name }}</span>
+    <span style="color:var(--text-secondary); font-size:0.8rem; margin-left:0.25rem;">— Summary Explorer</span>
+  </div>
+  <div>
+    <a class="action-btn" href="{{ dashboard_url }}" onclick="if(window.opener){window.close();return false;}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back to Dashboard
+    </a>
+  </div>
+</header>
+
+<!-- ── Tab Navigation Strip ─────────────────────────────────────── -->
+<div class="tab-strip" role="tablist">
+  <button class="tab-btn active" role="tab" data-tab="files">Files &amp; Layers</button>
+  <button class="tab-btn"        role="tab" data-tab="symbols">Symbols</button>
+</div>
+
+<!-- ── Content ───────────────────────────────────────────────────── -->
+<div class="tab-content">
+
+  <!-- ── FILES & LAYERS TAB ─────────────────────────────────────── -->
+  <section id="tab-files" class="tab-section active" role="tabpanel">
+    <div class="section-card">
+      <div class="table-toolbar">
+        <input type="text" id="files-search" placeholder="Search file path or tags…" style="min-width:240px;" />
+        <select id="files-layer-filter">
+          <option value="">All Layers</option>
+          <option value="core">Core / Engine</option>
+          <option value="api">API / Routes</option>
+          <option value="data_model">Models &amp; Schemas</option>
+          <option value="service">Services &amp; Logic</option>
+          <option value="middleware">Middleware &amp; Auth</option>
+          <option value="ui">UI &amp; Presentation</option>
+          <option value="cli">CLI &amp; Commands</option>
+          <option value="infra">Infra &amp; Config</option>
+          <option value="util">Utilities</option>
+          <option value="test">Tests</option>
+        </select>
+        <select id="files-tier-filter">
+          <option value="">All Tiers</option>
+          <option value="Tier 1">Tier 1: Core Hub</option>
+          <option value="Tier 2">Tier 2</option>
+          <option value="Tier 3">Tier 3</option>
+          <option value="Tier 4">Tier 4</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="files-table">
+          <colgroup>
+            <col style="width:35%"><col style="width:9%"><col style="width:12%">
+            <col style="width:8%"><col style="width:22%"><col style="width:7%"><col style="width:7%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>File Path</th><th>Layer</th><th>Tier</th>
+              <th>In / Out</th><th>Tags</th><th>Symbols</th><th>Max Cx</th>
+            </tr>
+          </thead>
+          <tbody id="files-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="files-pagination">
+        <button id="files-prev">‹ Prev</button>
+        <span id="files-page-info"></span>
+        <button id="files-next">Next ›</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SYMBOLS TAB ────────────────────────────────────────────── -->
+  <section id="tab-symbols" class="tab-section" role="tabpanel">
+    <div class="section-card">
+      <div class="table-toolbar">
+        <input type="text" id="sym-search" placeholder="Search symbol name or file…" style="min-width:240px;" />
+        <select id="sym-kind-filter">
+          <option value="">All Kinds</option>
+          <option value="function">Function</option>
+          <option value="async_function">Async Function</option>
+          <option value="class">Class</option>
+        </select>
+        <select id="sym-layer-filter">
+          <option value="">All Layers</option>
+          <option value="core">Core / Engine</option>
+          <option value="api">API / Routes</option>
+          <option value="data_model">Models &amp; Schemas</option>
+          <option value="service">Services &amp; Logic</option>
+          <option value="middleware">Middleware &amp; Auth</option>
+          <option value="ui">UI &amp; Presentation</option>
+          <option value="cli">CLI &amp; Commands</option>
+          <option value="infra">Infra &amp; Config</option>
+          <option value="util">Utilities</option>
+          <option value="test">Tests</option>
+        </select>
+        <button class="toggle-btn active" id="sym-group-layer" title="Group by Layer">Group: Layer</button>
+        <button class="toggle-btn" id="sym-group-kind" title="Group by Kind">Group: Kind</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="sym-table">
+          <colgroup>
+            <col style="width:22%"><col style="width:12%"><col style="width:10%">
+            <col style="width:28%"><col style="width:7%"><col style="width:8%"><col style="width:13%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Symbol</th><th>Kind</th><th>Layer</th>
+              <th>File</th><th>Line</th><th>Complexity</th><th>Tags</th>
+            </tr>
+          </thead>
+          <tbody id="sym-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="sym-pagination">
+        <button id="sym-prev">‹ Prev</button>
+        <span id="sym-page-info"></span>
+        <button id="sym-next">Next ›</button>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /tab-content -->
+
+<!-- Embedded data (XSS-safe via tojson filter) -->
+<script>
+const _rawData = {{ data_json | tojson }};
+const DATA = typeof _rawData === 'string' ? JSON.parse(_rawData) : (_rawData || {});
+const GITHUB_SLUG = {{ github_slug | tojson }};
+const PAGE_SIZE = 100;
+
+/* ── Utilities ─────────────────────────────────────────── */
+const LAYER_LABELS = {
+  core:'Core / Engine', api:'API / Routes', data_model:'Models & Schemas',
+  service:'Services & Logic', middleware:'Middleware & Auth', ui:'UI & Presentation',
+  cli:'CLI & Commands', infra:'Infra & Config', util:'Utilities', test:'Tests'
+};
+const LAYER_BADGE = {
+  core:'badge-core', api:'badge-api', data_model:'badge-model',
+  service:'badge-service', middleware:'badge-middleware', ui:'badge-ui',
+  cli:'badge-cli', infra:'badge-infra', util:'badge-util', test:'badge-test'
+};
+const KIND_BADGE = {
+  function:'badge-function', async_function:'badge-async', class:'badge-class'
+};
+const KIND_LABEL = { function:'Function', async_function:'Async Function', class:'Class' };
+function tierBadgeClass(tier) {
+  if (!tier) return '';
+  if (tier.startsWith('Tier 1')) return 'badge-tier1';
+  if (tier.startsWith('Tier 2')) return 'badge-tier2';
+  if (tier.startsWith('Tier 3')) return 'badge-tier3';
+  return 'badge-tier4';
+}
+function tierLabel(tier) {
+  if (!tier) return '';
+  if (tier.startsWith('Tier 1')) return 'Tier 1: Core Hub';
+  if (tier.startsWith('Tier 2')) return 'Tier 2';
+  if (tier.startsWith('Tier 3')) return 'Tier 3';
+  return 'Tier 4';
+}
+function cxClass(cx) {
+  if (cx >= 10) return 'complexity-high';
+  if (cx >= 5) return 'complexity-mid';
+  return 'complexity-low';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function badge(cls, text) { return `<span class="badge ${cls}">${escHtml(text)}</span>`; }
+function githubLink(path) {
+  if (!GITHUB_SLUG) return `<span title="${escHtml(path)}">${escHtml(path)}</span>`;
+  const url = `https://github.com/${escHtml(GITHUB_SLUG)}/blob/master/${escHtml(path)}`;
+  return `<a href="${url}" target="_blank" rel="noopener" title="${escHtml(path)}">${escHtml(path)}</a>`;
+}
+function tagPills(tags, max, onClick) {
+  if (!tags || !tags.length) return '';
+  return tags.slice(0, max).map(t =>
+    `<span class="tag-pill" data-tag="${escHtml(t)}" onclick="${onClick}(this)">${escHtml(t)}</span>`
+  ).join(' ');
+}
+
+/* ─────────────────────────────────────────────────────────
+   FILES & LAYERS TAB
+   ───────────────────────────────────────────────────────── */
+let filesPage = 0;
+let filesSorted = [];
+let filesGroupOpen = {};       // layer -> bool (open/closed)
+let filesActiveTagFilter = ''; // clicked tag pill filter
+
+function initFiles() {
+  filesSorted = (DATA.files || []).slice();
+  document.getElementById('files-search').addEventListener('input', () => { filesPage=0; renderFiles(); });
+  document.getElementById('files-layer-filter').addEventListener('change', () => { filesPage=0; renderFiles(); });
+  document.getElementById('files-tier-filter').addEventListener('change', () => { filesPage=0; renderFiles(); });
+  document.getElementById('files-prev').addEventListener('click', () => { filesPage--; renderFiles(); });
+  document.getElementById('files-next').addEventListener('click', () => { filesPage++; renderFiles(); });
+  renderFiles();
+}
+
+function filesTagClick(el) {
+  const tag = el.dataset.tag;
+  if (filesActiveTagFilter === tag) {
+    filesActiveTagFilter = '';
+    el.classList.remove('active');
+  } else {
+    filesActiveTagFilter = tag;
+    document.querySelectorAll('#files-tbody .tag-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+  }
+  filesPage = 0;
+  renderFiles();
+}
+
+function toggleFileGroup(layer) {
+  filesGroupOpen[layer] = !filesGroupOpen[layer];
+  renderFiles();
+}
+
+function renderFiles() {
+  const searchVal = document.getElementById('files-search').value.trim().toLowerCase();
+  const layerVal  = document.getElementById('files-layer-filter').value;
+  const tierVal   = document.getElementById('files-tier-filter').value;
+
+  let filtered = filesSorted.filter(f => {
+    if (layerVal && f.layer !== layerVal) return false;
+    if (tierVal && !(f.ranking_tier || '').startsWith(tierVal)) return false;
+    if (filesActiveTagFilter && !(f.tags || []).includes(filesActiveTagFilter)) return false;
+    if (searchVal) {
+      const haystack = (f.path + ' ' + (f.tags || []).join(' ')).toLowerCase();
+      if (!haystack.includes(searchVal)) return false;
+    }
+    return true;
+  });
+
+  const useGrouping = !searchVal && !layerVal && !tierVal && !filesActiveTagFilter;
+
+  const tbody = document.getElementById('files-tbody');
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  filesPage = Math.min(filesPage, totalPages - 1);
+  const start = filesPage * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+  // Initialize group open state
+  if (useGrouping) {
+    const layers = [...new Set(filtered.map(f => f.layer))];
+    layers.forEach(l => { if (filesGroupOpen[l] === undefined) filesGroupOpen[l] = true; });
+  }
+
+  let html = '';
+  if (useGrouping) {
+    // Group by layer
+    const groups = {};
+    pageRows.forEach(f => { (groups[f.layer] = groups[f.layer] || []).push(f); });
+    for (const [layer, rows] of Object.entries(groups)) {
+      const layerLabel = LAYER_LABELS[layer] || layer;
+      const isOpen = filesGroupOpen[layer] !== false;
+      const chevron = `<span class="group-chevron${isOpen ? '' : ' collapsed'}">▼</span>`;
+      html += `<tr class="group-header-row" onclick="toggleFileGroup('${layer}')">
+        <td colspan="7">${chevron}${escHtml(layerLabel)} <span style="opacity:0.6;font-weight:400;">(${rows.length} files)</span></td></tr>`;
+      if (isOpen) {
+        rows.forEach(f => { html += filesRow(f); });
+      }
+    }
+  } else {
+    pageRows.forEach(f => { html += filesRow(f); });
+  }
+
+  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">No files match the current filters.</td></tr>';
+
+  const pi = document.getElementById('files-page-info');
+  pi.textContent = `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}`;
+  document.getElementById('files-prev').disabled = filesPage <= 0;
+  document.getElementById('files-next').disabled = filesPage >= totalPages - 1;
+}
+
+function filesRow(f) {
+  const layer = f.layer || 'core';
+  const lbadge = badge(LAYER_BADGE[layer] || 'badge-core', LAYER_LABELS[layer] || layer);
+  const tbadge = badge(tierBadgeClass(f.ranking_tier), tierLabel(f.ranking_tier));
+  const cx = f.complexity || 1;
+  const cxHtml = `<span class="${cxClass(cx)}">${cx}</span>`;
+  const tags = tagPills(f.tags, 4, 'filesTagClick');
+  return `<tr>
+    <td class="path-cell" title="${escHtml(f.path)}">${githubLink(f.path)}</td>
+    <td>${lbadge}</td>
+    <td>${tbadge}</td>
+    <td style="color:var(--text-secondary);font-size:0.82rem;">${f.in_degree||0} / ${f.out_degree||0}</td>
+    <td style="display:flex;flex-wrap:wrap;gap:3px;padding:0.4rem 0.95rem;">${tags}</td>
+    <td style="color:var(--text-secondary);">${f.symbols_count||0}</td>
+    <td>${cxHtml}</td>
+  </tr>`;
+}
+
+/* ─────────────────────────────────────────────────────────
+   SYMBOLS TAB
+   ───────────────────────────────────────────────────────── */
+let symPage = 0;
+let symGroupMode = 'layer'; // 'layer' | 'kind'
+let symGroupOpen = {};
+
+function initSymbols() {
+  document.getElementById('sym-search').addEventListener('input', () => { symPage=0; renderSymbols(); });
+  document.getElementById('sym-kind-filter').addEventListener('change', () => { symPage=0; renderSymbols(); });
+  document.getElementById('sym-layer-filter').addEventListener('change', () => { symPage=0; renderSymbols(); });
+  document.getElementById('sym-group-layer').addEventListener('click', () => {
+    symGroupMode = 'layer'; symGroupOpen = {};
+    document.getElementById('sym-group-layer').classList.add('active');
+    document.getElementById('sym-group-kind').classList.remove('active');
+    symPage=0; renderSymbols();
+  });
+  document.getElementById('sym-group-kind').addEventListener('click', () => {
+    symGroupMode = 'kind'; symGroupOpen = {};
+    document.getElementById('sym-group-kind').classList.add('active');
+    document.getElementById('sym-group-layer').classList.remove('active');
+    symPage=0; renderSymbols();
+  });
+  document.getElementById('sym-prev').addEventListener('click', () => { symPage--; renderSymbols(); });
+  document.getElementById('sym-next').addEventListener('click', () => { symPage++; renderSymbols(); });
+  renderSymbols();
+}
+
+function toggleSymGroup(key) {
+  symGroupOpen[key] = !symGroupOpen[key];
+  renderSymbols();
+}
+
+function renderSymbols() {
+  const searchVal = document.getElementById('sym-search').value.trim().toLowerCase();
+  const kindVal   = document.getElementById('sym-kind-filter').value;
+  const layerVal  = document.getElementById('sym-layer-filter').value;
+
+  let filtered = (DATA.symbols || []).filter(s => {
+    if (kindVal  && s.kind  !== kindVal)  return false;
+    if (layerVal && s.layer !== layerVal) return false;
+    if (searchVal) {
+      const h = (s.name + ' ' + s.file).toLowerCase();
+      if (!h.includes(searchVal)) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('sym-tbody');
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  symPage = Math.min(symPage, totalPages - 1);
+  const start = symPage * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+  // Initialize group open state
+  const groupKey = symGroupMode === 'layer' ? 'layer' : 'kind';
+  const groupKeys = [...new Set(filtered.map(s => s[groupKey]))];
+  groupKeys.forEach(k => { if (symGroupOpen[k] === undefined) symGroupOpen[k] = true; });
+
+  let html = '';
+  // Group by the active mode
+  const groups = {};
+  pageRows.forEach(s => { (groups[s[groupKey]] = groups[s[groupKey]] || []).push(s); });
+  for (const [key, rows] of Object.entries(groups)) {
+    const label = symGroupMode === 'layer'
+      ? (LAYER_LABELS[key] || key)
+      : (KIND_LABEL[key] || key);
+    const isOpen = symGroupOpen[key] !== false;
+    const chevron = `<span class="group-chevron${isOpen ? '' : ' collapsed'}">▼</span>`;
+    html += `<tr class="group-header-row" onclick="toggleSymGroup('${escHtml(key)}')">
+      <td colspan="7">${chevron}${escHtml(label)} <span style="opacity:0.6;font-weight:400;">(${rows.length})</span></td></tr>`;
+    if (isOpen) {
+      rows.forEach(s => { html += symRow(s); });
+    }
+  }
+
+  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:2rem;">No symbols match the current filters.</td></tr>';
+
+  const pi = document.getElementById('sym-page-info');
+  pi.textContent = `${start+1}–${Math.min(start+PAGE_SIZE,totalRows)} of ${totalRows}`;
+  document.getElementById('sym-prev').disabled = symPage <= 0;
+  document.getElementById('sym-next').disabled = symPage >= totalPages - 1;
+}
+
+function symRow(s) {
+  const layer = s.layer || 'core';
+  const kind  = s.kind  || 'function';
+  const lbadge = badge(LAYER_BADGE[layer] || 'badge-core', LAYER_LABELS[layer] || layer);
+  const kbadge = badge(KIND_BADGE[kind]   || 'badge-function', KIND_LABEL[kind] || kind);
+  const cx = s.complexity || 1;
+  const cxHtml = `<span class="${cxClass(cx)}">${cx}</span>`;
+  const fileName = (s.file || '').split('/').pop() || s.file || '';
+  const tags = (s.tags || []).slice(0,3).map(t => `<span class="tag-pill" style="pointer-events:none;">${escHtml(t)}</span>`).join(' ');
+  return `<tr>
+    <td style="font-weight:600;color:#ffffff;">${escHtml(s.name)}</td>
+    <td>${kbadge}</td>
+    <td>${lbadge}</td>
+    <td class="path-cell" title="${escHtml(s.file||'')}">${escHtml(fileName)}</td>
+    <td style="color:var(--text-secondary);">${s.line||''}</td>
+    <td>${cxHtml}</td>
+    <td style="display:flex;flex-wrap:wrap;gap:3px;padding:0.35rem 0.95rem;">${tags}</td>
+  </tr>`;
+}
+
+/* ── Tab switching ─────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    const section = document.getElementById('tab-' + tab);
+    if (section) section.classList.add('active');
+    if (tab === 'files')   renderFiles();
+    if (tab === 'symbols') renderSymbols();
+  });
+});
+
+/* ── Boot ──────────────────────────────────────────────── */
+initFiles();
+initSymbols();
+</script>
+</body>
+</html>

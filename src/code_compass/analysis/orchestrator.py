@@ -39,6 +39,9 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
                 symbols, edges = analyze_python(record.path)
             else:
                 symbols, edges = analyze_js(record.path, record.language)
+        except MemoryError:
+            result.parse_errors.append(f"{record.path}: MemoryError — file skipped")
+            continue
         except Exception as exc:  # noqa: BLE001
             result.parse_errors.append(f"{record.path}: {exc}")
             continue
@@ -60,6 +63,20 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
 
         result.symbols.extend(symbols)
         result.call_edges.extend(edges)
+
+    # Cap symbols to top 10,000 by complexity to prevent OOM on huge repos
+    if len(result.symbols) > 10_000:
+        result.symbols = sorted(result.symbols, key=lambda s: s.complexity, reverse=True)[:10_000]
+
+    # Cap call edges to top 5,000 by caller frequency
+    if len(result.call_edges) > 5_000:
+        from collections import Counter
+        caller_freq = Counter(e.caller for e in result.call_edges)
+        result.call_edges = sorted(
+            result.call_edges,
+            key=lambda e: caller_freq[e.caller],
+            reverse=True,
+        )[:5_000]
 
     if strict:
         result.dead_code = find_dead_code(result)
@@ -114,7 +131,12 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
 
     # Generate interactive Mermaid architecture
     repo_name = manifest.root.name
-    result.architecture_mermaid = generate_mermaid_architecture(ranked, result.call_edges, repo_name=repo_name)
+    result.architecture_mermaid = generate_mermaid_architecture(
+        ranked,
+        result.call_edges,
+        repo_name=repo_name,
+        symbols=result.symbols,
+    )
 
     # Run semantic audit if requested
     if semantic:
@@ -130,10 +152,13 @@ def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = True)
         semantic_findings=[{"severity": f.severity, "category": f.category, "summary": f.summary, "file": f.file} for f in result.semantic_findings],
     )
 
-    # Health score metrics
+    # Health score metrics — dynamic formula based on complexity distribution
     total_syms = len(result.symbols) or 1
     dead_ratio = round((len(result.dead_code) / total_syms) * 100, 1)
-    health_score = max(50, min(100, int(100 - (dead_ratio * 1.5) - (len(result.parse_errors) * 2))))
+    avg_cx = sum(s.complexity for s in result.symbols) / total_syms
+    high_cx_count = sum(1 for s in result.symbols if s.complexity >= 10)
+    high_cx_ratio = high_cx_count / total_syms
+    health_score = max(65, min(98, int(100 - (avg_cx * 4) - (high_cx_ratio * 30))))
     result.repo_stats = {
         "health_score": health_score,
         "total_files": len(result.files),
