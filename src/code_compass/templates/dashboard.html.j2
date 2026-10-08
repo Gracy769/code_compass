@@ -14,32 +14,42 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --glass-bg:       rgba(255, 255, 255, 0.05);
-      --glass-bg-nav:   rgba(13, 17, 23, 0.85);
-      --glass-border:   rgba(255, 255, 255, 0.12);
+      /* ── Primary palette ───────────────────────────────────────── */
+      --bg-primary:     #070b14;
+      --accent-cyan:    #00b4d8;
+      --accent-blue:    #3b82d4;
+      --glow-cyan:      rgba(0, 180, 216, 0.22);
+      --glow-blue:      rgba(59, 130, 212, 0.28);
+
+      /* ── Glass / blur tokens ───────────────────────────────────── */
+      --glass-bg:       rgba(255, 255, 255, 0.04);
+      --glass-bg-nav:   rgba(7, 11, 20, 0.92);
+      --glass-border:   rgba(255, 255, 255, 0.10);
       --blur-radius:    16px;
 
+      /* ── Shadow system ─────────────────────────────────────────── */
       --clay-shadow:
-        0 1px 0 0 rgba(255,255,255,0.18) inset,
-        0 -1px 0 0 rgba(0,0,0,0.30) inset,
-        0 8px 24px -4px rgba(0,0,0,0.55),
-        0 2px 6px -1px rgba(0,0,0,0.40);
-      --clay-highlight:
-        0 1px 0 0 rgba(255,255,255,0.22) inset,
+        0 1px 0 0 rgba(255,255,255,0.14) inset,
         0 -1px 0 0 rgba(0,0,0,0.35) inset,
-        0 12px 32px -4px rgba(59,130,212,0.30),
-        0 4px 10px -2px rgba(0,0,0,0.50);
+        0 8px 24px -4px rgba(0,0,0,0.65),
+        0 2px 6px -1px rgba(0,0,0,0.45);
+      --clay-highlight:
+        0 1px 0 0 rgba(255,255,255,0.18) inset,
+        0 -1px 0 0 rgba(0,0,0,0.40) inset,
+        0 12px 32px -4px rgba(0,180,216,0.25),
+        0 4px 10px -2px rgba(0,0,0,0.55);
       --clay-press:
-        0 1px 0 0 rgba(255,255,255,0.10) inset,
-        0 2px 0 0 rgba(0,0,0,0.40) inset,
-        0 2px 6px -1px rgba(0,0,0,0.50);
+        0 1px 0 0 rgba(255,255,255,0.08) inset,
+        0 2px 0 0 rgba(0,0,0,0.45) inset,
+        0 2px 6px -1px rgba(0,0,0,0.55);
 
+      /* ── Semantic tokens ───────────────────────────────────────── */
       --accent:         #3b82d4;
-      --accent-hover:   #60a5fa;
-      --accent-muted:   rgba(59, 130, 212, 0.25);
+      --accent-hover:   #38bdf8;
+      --accent-muted:   rgba(0, 180, 216, 0.20);
       --text-primary:   #e2e8f0;
       --text-secondary: #94a3b8;
-      --surface:        rgba(255, 255, 255, 0.04);
+      --surface:        rgba(255, 255, 255, 0.03);
       --danger:         #f87171;
       --warn:           #fbbf24;
       --success:        #86efac;
@@ -51,11 +61,12 @@
     }
 
     body {
-      background-color: #0b0f19;
+      background-color: var(--bg-primary);
       background-image:
-        radial-gradient(ellipse 90% 60% at 50% -10%, rgba(59, 130, 212, 0.16), transparent),
-        radial-gradient(ellipse 50% 40% at 90%  90%, rgba(139,  92, 246, 0.08), transparent),
-        linear-gradient(180deg, #0b0f19 0%, #080c14 100%);
+        radial-gradient(ellipse 100% 55% at 50% -5%,  rgba(0, 180, 216, 0.14), transparent),
+        radial-gradient(ellipse  60% 45% at 90%  95%, rgba(139,  92, 246, 0.09), transparent),
+        radial-gradient(ellipse  40% 30% at  0% 100%, rgba(59, 130, 212, 0.07), transparent),
+        linear-gradient(180deg, #070b14 0%, #050810 100%);
       background-attachment: fixed;
       color: var(--text-primary);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -64,48 +75,234 @@
       min-height: 100vh;
     }
 
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      width: 220px;
+      background: rgba(7, 11, 20, 0.97);
+      border-right: 1px solid rgba(0, 180, 216, 0.12);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .sidebar.collapsed { width: 64px; }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1rem 1.1rem 1.1rem;
+      border-bottom: 1px solid rgba(0, 180, 216, 0.10);
+      min-height: 60px;
+      flex-shrink: 0;
+    }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      overflow: hidden;
+      flex: 1;
+    }
+    .sidebar-logo-icon {
+      width: 32px; height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #0ea5e9, #3b82d4);
+      box-shadow: 0 0 12px rgba(0,180,216,0.5), 0 2px 8px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .sidebar-brand-text {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.18s ease, width 0.25s ease;
+      line-height: 1.2;
+    }
+    .sidebar.collapsed .sidebar-brand-text { opacity: 0; width: 0; }
+
+    .sidebar-toggle {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.45rem;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .sidebar-toggle:hover { background: rgba(0,180,216,0.15); color: #00b4d8; border-color: rgba(0,180,216,0.3); }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0.75rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 3px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(0,180,216,0.25); border-radius: 3px; }
+
+    .sidebar-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+    .sidebar-nav-btn:hover {
+      background: rgba(0, 180, 216, 0.08);
+      color: var(--text-primary);
+      border-color: rgba(0,180,216,0.15);
+    }
+    .sidebar-nav-btn.active {
+      background: rgba(0, 180, 216, 0.12);
+      color: #38bdf8;
+      border-color: rgba(0, 180, 216, 0.25);
+      box-shadow: inset 3px 0 0 #00b4d8, 0 0 12px rgba(0,180,216,0.12);
+      font-weight: 600;
+    }
+    .sidebar-nav-icon {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sidebar-nav-label {
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.18s ease;
+      flex: 1;
+    }
+    .sidebar.collapsed .sidebar-nav-label { opacity: 0; }
+    /* Tooltip for collapsed state */
+    .sidebar.collapsed .sidebar-nav-btn[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 68px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(7, 11, 20, 0.97);
+      border: 1px solid rgba(0,180,216,0.3);
+      color: #e2e8f0;
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.35rem 0.7rem;
+      border-radius: 7px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    }
+
+    .sidebar-footer {
+      padding: 0.75rem 0.5rem 1rem;
+      border-top: 1px solid rgba(0,180,216,0.10);
+      flex-shrink: 0;
+    }
+    .sidebar-footer-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 9px;
+      background: rgba(0,180,216,0.06);
+      border: 1px solid rgba(0,180,216,0.15);
+      color: #38bdf8;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+    .sidebar-footer-btn:hover { background: rgba(0,180,216,0.14); border-color: rgba(0,180,216,0.35); }
+    .sidebar-footer-label {
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.18s ease;
+    }
+    .sidebar.collapsed .sidebar-footer-label { opacity: 0; }
+
+    /* ── Main Layout Wrapper ─────────────────────────────────────── */
+    #main-layout {
+      margin-left: 220px;
+      min-height: 100vh;
+      transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #main-layout.sidebar-collapsed { margin-left: 64px; }
+
     /* ── Nav Bar ────────────────────────────────────────────────── */
     .nav-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 0.85rem 1.75rem;
-      background: var(--glass-bg-nav);
-      border-bottom: 1px solid var(--glass-border);
-      backdrop-filter: blur(var(--blur-radius));
-      -webkit-backdrop-filter: blur(var(--blur-radius));
+      padding: 0.7rem 1.75rem;
+      background: rgba(7, 11, 20, 0.95);
+      border-bottom: 1px solid rgba(0, 180, 216, 0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       position: sticky;
       top: 0;
       z-index: 100;
     }
-    .nav-left { display: flex; align-items: center; gap: 0.75rem; }
-    .nav-bar .app-logo {
-      width: 28px; height: 28px;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, #3b82d4, #8b5cf6);
-      border-radius: 8px; box-shadow: 0 2px 8px rgba(59,130,212,0.4);
-    }
+    .nav-left { display: flex; align-items: center; gap: 0.85rem; }
     .nav-bar .app-name {
-      font-weight: 700;
-      font-size: 1.15rem;
+      font-weight: 800;
+      font-size: 0.82rem;
       color: #ffffff;
-      letter-spacing: -0.01em;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
     }
     .nav-bar .repo-badge {
-      font-size: 0.8rem;
-      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      padding: 0.18rem 0.6rem;
       border-radius: 20px;
-      background: rgba(59, 130, 212, 0.15);
-      border: 1px solid rgba(59, 130, 212, 0.3);
-      color: #93c5fd;
+      background: rgba(0, 180, 216, 0.10);
+      border: 1px solid rgba(0, 180, 216, 0.25);
+      color: #67e8f9;
       font-weight: 500;
       max-width: 320px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .nav-actions { display: flex; align-items: center; gap: 0.6rem; }
+    .nav-actions { display: flex; align-items: center; gap: 1rem; }
+    .nav-link {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .nav-link:hover { color: #38bdf8; }
     .action-btn {
       display: inline-flex;
       align-items: center;
@@ -127,52 +324,14 @@
       transform: translateY(-1px);
     }
     .action-btn-primary {
-      background: linear-gradient(135deg, #2563eb, #3b82d4);
-      border-color: rgba(96,165,250,0.4);
+      background: linear-gradient(135deg, #0ea5e9, #3b82d4);
+      border-color: rgba(0,180,216,0.4);
       color: #ffffff;
-      box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+      box-shadow: 0 4px 14px rgba(0,180,216,0.30);
     }
     .action-btn-primary:hover {
-      background: linear-gradient(135deg, #1d4ed8, #2563eb);
-      box-shadow: 0 6px 18px rgba(37,99,235,0.45);
-    }
-
-    /* ── Tab Strip ──────────────────────────────────────────────── */
-    .tab-strip {
-      display: flex;
-      gap: 0.5rem;
-      padding: 0.75rem 1.75rem 0;
-      border-bottom: 1px solid var(--glass-border);
-      background: rgba(13, 17, 23, 0.65);
-      backdrop-filter: blur(8px);
-      overflow-x: auto;
-    }
-    .tab-btn {
-      padding: 0.55rem 1.25rem;
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: var(--radius-btn) var(--radius-btn) 0 0;
-      border-bottom: none;
-      background: rgba(255,255,255,0.04);
-      color: var(--text-secondary);
-      font-family: inherit;
-      font-size: 0.88rem;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-      box-shadow: var(--clay-shadow);
-      transition: all 0.18s ease;
-    }
-    .tab-btn:hover {
-      background: rgba(59,130,212,0.12);
-      color: var(--text-primary);
-      transform: translateY(-2px);
-    }
-    .tab-btn.active {
-      background: linear-gradient(180deg, rgba(59,130,212,0.22) 0%, rgba(59,130,212,0.08) 100%);
-      color: var(--accent);
-      font-weight: 600;
-      border-color: rgba(59,130,212,0.4);
-      box-shadow: 0 8px 20px -4px rgba(59,130,212,0.35);
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      box-shadow: 0 6px 18px rgba(0,180,216,0.40);
     }
 
     /* ── Content Area ───────────────────────────────────────────── */
@@ -440,57 +599,442 @@
       display: none;
       animation: fadeIn 0.2s ease;
     }
+
+    /* ── Hero Section ───────────────────────────────────────────── */
+    .hero-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      padding: 2.5rem 0 2rem;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 80% at 0% 50%, rgba(0,180,216,0.07), transparent),
+        radial-gradient(ellipse 70% 80% at 100% 50%, rgba(59,130,212,0.06), transparent);
+      pointer-events: none;
+      border-radius: 1.5rem;
+    }
+    @media (max-width: 900px) { .hero-section { grid-template-columns: 1fr; } }
+
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 2rem 1.75rem 2rem 0.5rem;
+    }
+    .hero-tagline {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #00b4d8;
+    }
+    .hero-headline {
+      font-size: 2.6rem;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    .hero-headline .hl-cyan { color: #38bdf8; }
+    .hero-subtext {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      max-width: 440px;
+    }
+    .hero-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(0,180,216,0.22);
+      border-radius: 12px;
+      padding: 0.6rem 1rem;
+      backdrop-filter: blur(8px);
+    }
+    .hero-input-wrap input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.92rem;
+    }
+    .hero-input-wrap input::placeholder { color: var(--text-secondary); }
+    .hero-buttons {
+      display: flex;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .hero-analyze-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.75rem 1.6rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7 0%, #3b82d4 50%, #0ea5e9 100%);
+      border: none;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 24px rgba(0,180,216,0.35), 0 4px 14px rgba(0,0,0,0.3);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-analyze-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
+    .hero-analyze-btn:hover::after { transform: translateX(100%); }
+    .hero-analyze-btn:hover { box-shadow: 0 0 32px rgba(0,180,216,0.5), 0 6px 18px rgba(0,0,0,0.35); transform: translateY(-1px); }
+
+    .hero-gh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.75rem 1.4rem;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      box-shadow: var(--clay-shadow);
+    }
+    .hero-gh-btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.28); transform: translateY(-1px); }
+    .hero-gh-btn.authed { background: linear-gradient(135deg, #0ea5e9, #3b82d4); border-color: rgba(0,180,216,0.4); box-shadow: 0 4px 14px rgba(0,180,216,0.28); }
+
+    .hero-chips {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+    .hero-chip-label { font-size: 0.75rem; color: var(--text-secondary); }
+    .hero-chip {
+      padding: 0.28rem 0.75rem;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .hero-chip:hover { background: rgba(0,180,216,0.12); border-color: rgba(0,180,216,0.3); color: #38bdf8; }
+
+    /* Hero Right Column */
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      padding: 1.25rem 0.5rem 1.25rem 1rem;
+    }
+    .hero-status-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(0,180,216,0.15);
+      border-radius: 14px;
+      padding: 0.85rem 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      backdrop-filter: blur(8px);
+    }
+    .hero-spinner {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 3px solid rgba(0,180,216,0.2);
+      border-top-color: #00b4d8;
+      animation: heroSpin 1.2s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes heroSpin { to { transform: rotate(360deg); } }
+    .hero-status-info { flex: 1; min-width: 0; }
+    .hero-status-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: #67e8f9; text-transform: uppercase; margin-bottom: 0.25rem; }
+    .hero-status-sub { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hero-progress-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+    .hero-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00b4d8, #38bdf8);
+      border-radius: 4px;
+      animation: heroProgressFill 2.2s ease-out 0.3s forwards;
+    }
+    .hero-progress-pct { font-size: 0.7rem; color: #38bdf8; font-weight: 700; margin-left: auto; flex-shrink: 0; }
+    @keyframes heroProgressFill { from { width: 0%; } to { width: 100%; } }
+
+    .hero-canvas-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 220px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(0,10,28,0.5);
+      border: 1px solid rgba(0,180,216,0.12);
+    }
+    #hero-topology-canvas { width: 100%; height: 100%; display: block; }
+
+    .hero-map-overlay {
+      position: absolute;
+      top: 0.7rem; right: 0.7rem;
+      background: rgba(7,11,20,0.88);
+      border: 1px solid rgba(0,180,216,0.2);
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      backdrop-filter: blur(8px);
+      min-width: 120px;
+    }
+    .hero-map-title { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.4rem; }
+    .hero-legend { display: flex; flex-direction: column; gap: 3px; }
+    .hero-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.65rem; color: var(--text-secondary); }
+    .hero-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .hero-legend-line { width: 14px; height: 1px; background: rgba(255,255,255,0.35); flex-shrink: 0; }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+    }
+    .hero-metric-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 0.9rem 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      transition: border-color 0.15s ease;
+    }
+    .hero-metric-card:hover { border-color: rgba(0,180,216,0.22); }
+    .hero-metric-icon { color: #00b4d8; flex-shrink: 0; margin-top: 2px; }
+    .hero-metric-val { font-size: 1.2rem; font-weight: 800; color: #ffffff; line-height: 1.2; }
+    .hero-metric-val em { color: #38bdf8; font-style: normal; }
+    .hero-metric-label { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
   </style>
 </head>
 <body>
 
-<!-- ── Navigation Bar ───────────────────────────────────────────── -->
+<!-- ── Collapsible Left Sidebar ─────────────────────────────────── -->
+<nav class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+  <!-- Header: Logo + Brand + Collapse Toggle -->
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+        </svg>
+      </div>
+      <span class="sidebar-brand-text">CODE<br>COMPASS</span>
+    </div>
+    <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">◀</button>
+  </div>
+
+  <!-- Nav Items -->
+  <div class="sidebar-nav" role="tablist">
+    <button class="sidebar-nav-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" data-tab="overview" data-tooltip="Overview">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </span>
+      <span class="sidebar-nav-label">Overview</span>
+    </button>
+    <button class="sidebar-nav-btn" role="tab" aria-selected="false" aria-controls="tab-prompt" data-tab="prompt" data-tooltip="System Prompt">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </span>
+      <span class="sidebar-nav-label">System Prompt</span>
+    </button>
+    <button class="sidebar-nav-btn" role="tab" aria-selected="false" aria-controls="tab-architecture" data-tab="architecture" data-tooltip="Architecture">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/></svg>
+      </span>
+      <span class="sidebar-nav-label">Architecture</span>
+    </button>
+    <button class="sidebar-nav-btn" role="tab" aria-selected="false" aria-controls="tab-callgraph" data-tab="callgraph" data-tooltip="Call Graph">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </span>
+      <span class="sidebar-nav-label">Call Graph</span>
+    </button>
+    <button class="sidebar-nav-btn" role="tab" aria-selected="false" aria-controls="tab-contributors" data-tab="contributors" data-tooltip="Contributors">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      <span class="sidebar-nav-label">Contributors</span>
+    </button>
+    <button class="sidebar-nav-btn" role="tab" aria-selected="false" aria-controls="tab-semantic" data-tab="semantic" data-tooltip="Semantic Audit">
+      <span class="sidebar-nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </span>
+      <span class="sidebar-nav-label">Semantic Audit</span>
+    </button>
+  </div>
+
+  <!-- Footer: Open Summary Explorer -->
+  <div class="sidebar-footer">
+    <button class="sidebar-footer-btn" id="btn-open-summary-sidebar" onclick="window.open(window.__SUMMARY_URL__,'_blank');" title="Open Summary Explorer">
+      <span class="sidebar-nav-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </span>
+      <span class="sidebar-footer-label">Summary Explorer</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ── Main Layout Wrapper ───────────────────────────────────────── -->
+<div id="main-layout">
+
+<!-- ── Top Navigation Bar ───────────────────────────────────────── -->
 <header class="nav-bar">
   <div class="nav-left">
-    <div class="app-logo">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
-      </svg>
-    </div>
     <span class="app-name">Code Compass</span>
     <span class="repo-badge" id="nav-repo-path">{{ repo_name }}</span>
   </div>
-
-  <div class="nav-actions">
-    <!-- Single dynamic GitHub button: Sign in → Upload from GitHub -->
-    <button class="action-btn" id="btn-gh-dynamic" title="Sign in with GitHub or upload from GitHub">
-      <!-- Icon and label are set by JS based on auth state -->
-      <svg id="gh-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-      </svg>
-      <span id="gh-btn-label">Sign in</span>
-    </button>
-    <button class="action-btn" id="btn-upload-local" title="Upload from local folder">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-      </svg>
-      Local Folder
-    </button>
-    <input type="file" id="local-folder-picker" webkitdirectory directory multiple style="display:none" />
-  </div>
+  <nav class="nav-actions">
+    <a href="#" class="nav-link">Docs</a>
+    {% if github_slug %}
+    <a href="https://github.com/{{ github_slug }}" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
+    {% else %}
+    <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
+    {% endif %}
+  </nav>
 </header>
 
-<!-- ── Tab Navigation Strip ────────────────────────────────────── -->
-<div class="tab-strip" role="tablist">
-  <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="tab-overview"     data-tab="overview">Overview</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-prompt"       data-tab="prompt">System Prompt</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-architecture" data-tab="architecture">Architecture (Mermaid)</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-callgraph"    data-tab="callgraph">Call Graph</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-contributors" data-tab="contributors">Contributors (Top 100)</button>
-  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-semantic"     data-tab="semantic">Semantic Audit</button>
-</div>
+<!-- ── Hidden elements needed by modals / hero JS ───────────────── -->
+<input type="file" id="local-folder-picker" webkitdirectory directory multiple style="display:none" />
 
 <!-- ── Content Container ───────────────────────────────────────── -->
 <div class="tab-content">
 
-  <!-- ── 1. OVERVIEW TAB (Requirement 5: Bento Grid + Detailed AI Prompt) ── -->
+  <!-- ── 1. OVERVIEW TAB ─────────────────────────────────────── -->
   <section id="tab-overview" class="tab-section active" role="tabpanel">
+
+    <!-- ── HERO SECTION ────────────────────────────────────────── -->
+    <div class="hero-section">
+      <!-- Left Column: Input & Action Controls -->
+      <div class="hero-left">
+        <p class="hero-tagline">Architecture, Made Visible</p>
+        <h1 class="hero-headline">
+          Ingest any codebase.<br>
+          <span class="hl-cyan">Surface invisible architecture.</span>
+        </h1>
+        <p class="hero-subtext">Autonomous codebase onboarding and static analysis that turns complex systems into clear, interactive maps.</p>
+
+        <div class="hero-input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text-secondary);flex-shrink:0;">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <input type="text" id="hero-repo-input" placeholder="Paste GitHub URL or local path" />
+        </div>
+
+        <div class="hero-buttons">
+          <button class="hero-analyze-btn" onclick="showToast('Analyzing… paste a local path and use the CLI: uv run code-compass analyze <path>');">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Analyze Codebase
+          </button>
+          <button class="hero-gh-btn" id="btn-gh-dynamic">
+            <svg id="gh-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span id="gh-btn-label">Sign in with GitHub</span>
+          </button>
+        </div>
+
+        <div class="hero-chips">
+          <span class="hero-chip-label">Quick-launch:</span>
+          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='transformers'">transformers</button>
+          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='fastapi'">fastapi</button>
+          <button class="hero-chip" onclick="document.getElementById('hero-repo-input').value='redis'">redis</button>
+        </div>
+      </div>
+
+      <!-- Right Column: Network Topology + Metrics -->
+      <div class="hero-right">
+        <!-- Status Card -->
+        <div class="hero-status-card">
+          <div class="hero-spinner"></div>
+          <div class="hero-status-info">
+            <div class="hero-status-title">Parsing Codebase</div>
+            <div class="hero-status-sub">Scanning files, building AST, and mapping relationships... 100% Complete</div>
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.4rem;">
+              <div class="hero-progress-bar" style="flex:1;"><div class="hero-progress-fill"></div></div>
+              <span class="hero-progress-pct">100%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas: Topology Network -->
+        <div class="hero-canvas-wrap">
+          <canvas id="hero-topology-canvas"></canvas>
+          <!-- Codebase Map Mini Overlay -->
+          <div class="hero-map-overlay">
+            <div class="hero-map-title">Codebase Map</div>
+            <div class="hero-legend">
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#38bdf8;"></span> Module</div>
+              <div class="hero-legend-item"><span class="hero-legend-line"></span> Dependency</div>
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Higher risk</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom 3 Metric Cards -->
+        <div class="hero-metrics">
+          <div class="hero-metric-card">
+            <div class="hero-metric-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <div class="hero-metric-val"><em id="hero-files-count">—</em> Files</div>
+              <div class="hero-metric-label">Scanned and indexed</div>
+            </div>
+          </div>
+          <div class="hero-metric-card">
+            <div class="hero-metric-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <div class="hero-metric-val"><em>0.75s</em> AST</div>
+              <div class="hero-metric-label">Parse and analyze</div>
+            </div>
+          </div>
+          <div class="hero-metric-card">
+            <div class="hero-metric-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="hero-metric-val"><em id="hero-panic-count">0</em> Panic</div>
+              <div class="hero-metric-label">Critical issues</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /hero-section -->
+
     <!-- Top Summary Stat Cards -->
     <div class="stat-cards" id="overview-cards"></div>
 
@@ -805,7 +1349,7 @@
   var aiPrompt     = D.ai_system_prompt || '';
   var repoStats    = D.repo_stats   || {};
 
-  // ── 2. Nav & Toast ────────────────────────────────────────────
+  // ── 2. Nav, Toast & Sidebar ────────────────────────────────────
   document.getElementById('nav-repo-path').textContent = window.__REPO_NAME__ || '';
 
   window.showToast = function(msg) {
@@ -819,12 +1363,34 @@
     document.getElementById(id).classList.remove('active');
   };
 
-  // ── Dynamic GitHub Button (Sign in → Upload from GitHub) ──────
-  function updateGhButton() {
+  // ── Sidebar Collapse Toggle ───────────────────────────────────
+  (function() {
+    var sidebar   = document.getElementById('sidebar');
+    var layout    = document.getElementById('main-layout');
+    var toggleBtn = document.getElementById('sidebar-toggle');
+    var collapsed = localStorage.getItem('cc_sidebar_collapsed') === '1';
+
+    function applySidebarState() {
+      sidebar.classList.toggle('collapsed', collapsed);
+      layout.classList.toggle('sidebar-collapsed', collapsed);
+      toggleBtn.textContent = collapsed ? '▶' : '◀';
+    }
+    applySidebarState();
+
+    toggleBtn.addEventListener('click', function() {
+      collapsed = !collapsed;
+      localStorage.setItem('cc_sidebar_collapsed', collapsed ? '1' : '0');
+      applySidebarState();
+    });
+  }());
+
+  // ── Dynamic GitHub Button (used by Hero section) ──────────────
+  window.updateGhButton = function() {
     var token = localStorage.getItem('cc_gh_token');
     var btn   = document.getElementById('btn-gh-dynamic');
     var label = document.getElementById('gh-btn-label');
     var icon  = document.getElementById('gh-btn-icon');
+    if (!btn) return;
     if (token) {
       btn.classList.add('action-btn-primary');
       label.textContent = 'Upload from GitHub';
@@ -835,20 +1401,17 @@
       icon.setAttribute('stroke-width','2');
     } else {
       btn.classList.remove('action-btn-primary');
-      label.textContent = 'Sign in';
+      label.textContent = 'Sign in with GitHub';
     }
-  }
-  updateGhButton();
+  };
+  window.updateGhButton();
 
-  document.getElementById('btn-gh-dynamic').addEventListener('click', function() {
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('#btn-gh-dynamic');
+    if (!btn) return;
     var token = localStorage.getItem('cc_gh_token');
     if (!token) {
-      // Open GitHub token creation page in a new tab, then show paste modal
-      window.open(
-        'https://github.com/settings/tokens/new?scopes=repo,read:org&description=CodeCompass',
-        '_blank',
-        'noopener,noreferrer'
-      );
+      window.open('https://github.com/settings/tokens/new?scopes=repo,read:org&description=CodeCompass','_blank','noopener,noreferrer');
       document.getElementById('gh-token-input').value = '';
       document.getElementById('modal-gh-token').classList.add('active');
     } else {
@@ -861,11 +1424,10 @@
     if (!t) { showToast('Please paste your token first.'); return; }
     localStorage.setItem('cc_gh_token', t);
     closeModal('modal-gh-token');
-    updateGhButton();
+    window.updateGhButton();
     showToast('Signed in to GitHub!');
   });
 
-  // Allow Enter key to save token
   document.getElementById('gh-token-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('btn-save-gh-token').click();
   });
@@ -875,10 +1437,6 @@
     closeModal('modal-import-gh');
     showToast('Analyzing repository ' + repo + '…');
   };
-
-  document.getElementById('btn-upload-local').addEventListener('click', function() {
-    document.getElementById('local-folder-picker').click();
-  });
 
   document.getElementById('local-folder-picker').addEventListener('change', function(e) {
     if (e.target.files.length) {
@@ -892,7 +1450,7 @@
     document.querySelectorAll('.tab-section').forEach(function (s) {
       s.classList.toggle('active', s.id === 'tab-' + id);
     });
-    document.querySelectorAll('.tab-btn').forEach(function (b) {
+    document.querySelectorAll('.sidebar-nav-btn').forEach(function (b) {
       var active = b.dataset.tab === id;
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
@@ -907,7 +1465,7 @@
     }
   }
 
-  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+  document.querySelectorAll('.sidebar-nav-btn').forEach(function (btn) {
     btn.addEventListener('click', function () { showTab(btn.dataset.tab); });
   });
 
@@ -1059,6 +1617,111 @@
         '<span>Symbol density: <strong style="color:#c4b5fd;">' + (totalFiles ? (totalSymbols / totalFiles).toFixed(1) : '0') + ' sym/file</strong></span>' +
         '<span>Total layers: <strong style="color:#6ee7b7;">' + Object.keys(layerFileCount).length + '</strong></span>';
     }
+  }());
+
+  // ── HERO: Wire metric cards & canvas topology ─────────────────
+  (function initHero() {
+    // Wire Files count
+    var filesEl = document.getElementById('hero-files-count');
+    if (filesEl) {
+      var totalFiles = files.length || (new Set(symbols.map(function(s){ return s.file; }))).size;
+      filesEl.textContent = totalFiles.toLocaleString();
+    }
+    // Panic count = semantic findings with severity 'high'
+    var panicEl = document.getElementById('hero-panic-count');
+    if (panicEl) {
+      var panics = (D.semantic_findings || []).filter(function(f){ return f.severity === 'high'; });
+      panicEl.textContent = panics.length;
+    }
+
+    // Canvas topology
+    var canvas = document.getElementById('hero-topology-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var hubs = [
+      { label: 'core',     x: 0.50, y: 0.45, r: 10, color: '#00b4d8', glow: 'rgba(0,180,216,0.6)'  },
+      { label: 'api',      x: 0.25, y: 0.30, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.5)' },
+      { label: 'models',   x: 0.72, y: 0.28, r:  7, color: '#818cf8', glow: 'rgba(129,140,248,0.5)'},
+      { label: 'services', x: 0.22, y: 0.62, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.4)' },
+      { label: 'data',     x: 0.65, y: 0.70, r:  7, color: '#00b4d8', glow: 'rgba(0,180,216,0.4)'  },
+      { label: 'utils',    x: 0.82, y: 0.50, r:  6, color: '#7dd3fc', glow: 'rgba(125,211,252,0.4)'},
+    ];
+    var edges = [[0,1],[0,2],[0,3],[0,4],[1,3],[2,5],[4,5],[1,2],[3,4]];
+    var floatPhase = 0;
+
+    function resizeCanvas() {
+      var rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width  = rect.width  || 400;
+      canvas.height = rect.height || 220;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function drawFrame() {
+      var W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // Subtle deep background glow layers
+      var bg1 = ctx.createRadialGradient(W*0.3, H*0.4, 0, W*0.3, H*0.4, W*0.5);
+      bg1.addColorStop(0, 'rgba(0,100,180,0.08)');
+      bg1.addColorStop(1, 'transparent');
+      ctx.fillStyle = bg1; ctx.fillRect(0,0,W,H);
+      var bg2 = ctx.createRadialGradient(W*0.75, H*0.6, 0, W*0.75, H*0.6, W*0.4);
+      bg2.addColorStop(0, 'rgba(0,180,216,0.06)');
+      bg2.addColorStop(1, 'transparent');
+      ctx.fillStyle = bg2; ctx.fillRect(0,0,W,H);
+
+      // Compute positions with float offset
+      var positions = hubs.map(function(h, i) {
+        var offset = Math.sin(floatPhase + i * 1.1) * 4;
+        return { x: h.x * W, y: h.y * H + offset };
+      });
+
+      // Draw edges
+      edges.forEach(function(e) {
+        var a = positions[e[0]], b = positions[e[1]];
+        var grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+        grad.addColorStop(0, 'rgba(0,180,216,0.35)');
+        grad.addColorStop(1, 'rgba(56,189,248,0.20)');
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      });
+
+      // Draw nodes
+      hubs.forEach(function(h, i) {
+        var p = positions[i];
+        var pulse = 1 + 0.08 * Math.sin(floatPhase * 1.5 + i * 0.8);
+        var r = h.r * pulse;
+
+        // Glow
+        var glowGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3.5);
+        glowGrad.addColorStop(0, h.glow);
+        glowGrad.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = glowGrad; ctx.fill();
+
+        // Node circle
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = h.color;
+        ctx.fill();
+
+        // Label
+        ctx.font = '600 ' + (r > 8 ? '11' : '9') + 'px system-ui,sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.label, p.x, p.y + r + 13);
+      });
+
+      floatPhase += 0.018;
+      requestAnimationFrame(drawFrame);
+    }
+    drawFrame();
   }());
 
   // ── SYSTEM PROMPT TAB ─────────────────────────────────────────
@@ -1435,5 +2098,6 @@
   showTab('overview');
 }());
 </script>
+</div><!-- /#main-layout -->
 </body>
 </html>
