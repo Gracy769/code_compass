@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import json
 import os
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -93,8 +97,52 @@ def compute_hash(repo_path_or_url: str, github_ref: str = "") -> str:
     ).hexdigest()[:32]
 
 
+def _secret_key_config() -> tuple[str, str] | None:
+    """Return the new server key; it must go in `apikey`, never Bearer auth."""
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+    if url and key.startswith("sb_secret_"):
+        return url, key
+    return None
+
+
+def _secret_key_request(method: str, query: dict[str, str], row: dict | None = None) -> list:
+    """Call PostgREST with an opaque Supabase secret key in the correct header."""
+    config = _secret_key_config()
+    if config is None:
+        raise ValueError("Supabase secret key is not configured")
+    url, key = config
+    endpoint = f"{url}/rest/v1/analysis_cache?{urllib.parse.urlencode(query)}"
+    headers = {"apikey": key, "Accept": "application/json"}
+    if row is not None:
+        headers.update({
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        })
+    request = urllib.request.Request(
+        endpoint, data=json.dumps(row).encode("utf-8") if row is not None else None,
+        headers=headers, method=method,
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        body = response.read()
+    return json.loads(body) if body else []
+
+
 def load_cache(hash_str: str, ttl_days: int = 7) -> Optional[AnalysisResult]:
     """Return a cached :class:`AnalysisResult`, or *None* on any miss/error."""
+    if _secret_key_config() is not None:
+        try:
+            rows = _secret_key_request("GET", {
+                "repo_hash": f"eq.{hash_str}",
+                "expires_at": f"gt.{datetime.now(timezone.utc).isoformat()}",
+                "select": "analysis_json", "limit": "1",
+            })
+            if rows and isinstance(rows[0], dict) and rows[0].get("analysis_json"):
+                return _dict_to_analysis_result(rows[0]["analysis_json"])
+        except Exception as exc:
+            print(f"CACHE LOAD FAILED: {type(exc).__name__}")
+        return None
+
     client = _get_client()
     if client is None:
         return None
@@ -127,10 +175,6 @@ def save_cache(
     github_slug: str = "",
 ) -> bool:
     """Upsert *result* into Supabase. Returns *True* on success, *False* otherwise."""
-    client = _get_client()
-    if client is None:
-        return False
-
     try:
         now = datetime.now(timezone.utc)
         expires = now + timedelta(days=ttl_days)
@@ -142,10 +186,15 @@ def save_cache(
             "created_at": now.isoformat(),
             "expires_at": expires.isoformat(),
         }
+        if _secret_key_config() is not None:
+            _secret_key_request("POST", {"on_conflict": "repo_hash"}, row)
+            return True
+        client = _get_client()
+        if client is None:
+            return False
         client.table("analysis_cache").upsert(row).execute()
         return True
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"CACHE SAVE FAILED: {e}")
+        print(f"CACHE SAVE FAILED: {type(e).__name__}"
+              + (f" HTTP {e.code}" if isinstance(e, urllib.error.HTTPError) else ""))
         return False

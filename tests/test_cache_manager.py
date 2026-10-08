@@ -1,6 +1,7 @@
 """Tests for code_compass.cache_manager."""
 
 import re
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -134,3 +135,40 @@ def test_save_cache_error(monkeypatch):
 
     result = save_cache("somehash", AnalysisResult())
     assert result is False
+
+
+def test_new_secret_key_uses_apikey_header_for_cache(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "sb_secret_test")
+    requests = []
+
+    class FakeResponse:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return self.body
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        headers = {name.lower(): value for name, value in request.headers.items()}
+        assert headers["apikey"] == "sb_secret_test"
+        assert "authorization" not in headers
+        if request.get_method() == "GET":
+            return FakeResponse(json.dumps([
+                {"analysis_json": {"repo_stats": {"github_ref": "a" * 40}}}
+            ]).encode())
+        return FakeResponse(b"")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    cached = load_cache("a" * 32)
+    assert cached is not None and cached.repo_stats["github_ref"] == "a" * 40
+    assert save_cache("a" * 32, cached, repo_name="example") is True
+    assert [request.get_method() for request in requests] == ["GET", "POST"]
+    assert b'"repo_name": "example"' in requests[1].data
