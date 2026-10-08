@@ -673,7 +673,8 @@
   'use strict';
 
   // ── 1. Data access ────────────────────────────────────────────
-  var D = window.__COMPASS_DATA__;
+  var rawData = window.__COMPASS_DATA__;
+  var D = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {});
   var symbols      = D.symbols      || [];
   var callEdges    = D.call_edges   || [];
   var contributors = D.contributors || [];
