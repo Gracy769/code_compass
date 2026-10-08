@@ -529,6 +529,10 @@
       align-items: center;
       justify-content: center;
     }
+    #main-mermaid-wrapper { cursor: grab; touch-action: none; user-select: none; }
+    #main-mermaid-wrapper.dragging { cursor: grabbing; }
+    #main-mermaid-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+    #main-mermaid-canvas svg { display: block; max-width: none; }
     .diagram-toolbar {
       position: absolute;
       top: 1rem; right: 1rem;
@@ -756,15 +760,13 @@
       gap: 1rem;
       backdrop-filter: blur(8px);
     }
-    .hero-spinner {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      border: 3px solid rgba(0,180,216,0.2);
-      border-top-color: #00b4d8;
-      animation: heroSpin 1.2s linear infinite;
-      flex-shrink: 0;
+    .hero-complete-icon {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 50%; display: grid; place-items: center;
+      color: #6ee7b7; background: rgba(16,185,129,0.13);
+      border: 1px solid rgba(110,231,183,0.5);
+      box-shadow: 0 0 0 4px rgba(16,185,129,0.08);
     }
-    @keyframes heroSpin { to { transform: rotate(360deg); } }
     .hero-status-info { flex: 1; min-width: 0; }
     .hero-status-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: #67e8f9; text-transform: uppercase; margin-bottom: 0.25rem; }
     .hero-status-sub { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -777,13 +779,11 @@
     }
     .hero-progress-fill {
       height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #00b4d8, #38bdf8);
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #6ee7b7);
       border-radius: 4px;
-      animation: heroProgressFill 2.2s ease-out 0.3s forwards;
     }
-    .hero-progress-pct { font-size: 0.7rem; color: #38bdf8; font-weight: 700; margin-left: auto; flex-shrink: 0; }
-    @keyframes heroProgressFill { from { width: 0%; } to { width: 100%; } }
+    .hero-progress-pct { font-size: 0.7rem; color: #6ee7b7; font-weight: 700; margin-left: auto; flex-shrink: 0; }
 
     .hero-canvas-wrap {
       position: relative;
@@ -832,6 +832,34 @@
     .hero-metric-val { font-size: 1.2rem; font-weight: 800; color: #ffffff; line-height: 1.2; }
     .hero-metric-val em { color: #38bdf8; font-style: normal; }
     .hero-metric-label { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .cg-intro h2 { color:#fff; font-size:1.35rem; margin-bottom:0.25rem; }
+    .cg-intro p { color:var(--text-secondary); max-width:780px; font-size:0.84rem; }
+    .cg-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.7rem; margin:1.2rem 0; }
+    .cg-metric { background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.16); border-radius:10px; padding:0.8rem 1rem; }
+    .cg-metric strong { display:block; color:#fff; font-size:1.2rem; }
+    .cg-metric span { color:var(--text-secondary); font-size:0.75rem; }
+    .cg-layout { display:grid; grid-template-columns:minmax(240px,0.9fr) minmax(0,1.6fr); gap:1rem; min-height:520px; }
+    .cg-panel { min-width:0; background:rgba(8,16,30,0.65); border:1px solid rgba(148,163,184,0.15); border-radius:12px; padding:1rem; }
+    .cg-panel h3 { color:#fff; font-size:0.98rem; }
+    .cg-panel-note { color:var(--text-secondary); font-size:0.76rem; margin:0.25rem 0 0.85rem; }
+    .cg-search { width:100%; padding:0.62rem 0.75rem; border-radius:8px; border:1px solid rgba(148,163,184,0.3); background:#0b1423; color:var(--text-primary); font:inherit; }
+    .cg-search:focus { outline:2px solid rgba(56,189,248,0.4); }
+    .cg-caller-list { max-height:520px; overflow-y:auto; margin-top:0.75rem; }
+    .cg-file-group { border:1px solid rgba(148,163,184,0.12); border-radius:8px; margin-bottom:0.55rem; overflow:hidden; }
+    .cg-file-group summary { cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.7rem; color:#cbd5e1; background:rgba(30,41,59,0.42); font-size:0.78rem; overflow-wrap:anywhere; }
+    .cg-file-group summary:hover { background:rgba(30,58,90,0.6); }
+    .cg-file-group summary span { color:#67e8f9; flex-shrink:0; }
+    .cg-caller { width:100%; border:0; border-top:1px solid rgba(148,163,184,0.09); background:transparent; color:#e2e8f0; padding:0.58rem 0.7rem; display:flex; justify-content:space-between; gap:0.5rem; text-align:left; cursor:pointer; font:inherit; font-size:0.79rem; }
+    .cg-caller:hover, .cg-caller.active { background:rgba(14,116,144,0.2); color:#fff; }
+    .cg-caller span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cg-caller span:last-child { color:#67e8f9; }
+    .cg-selected-path { color:#93c5fd; font-size:0.78rem; overflow-wrap:anywhere; margin:0.35rem 0; }
+    .cg-source-link { display:inline-block; color:#7dd3fc; text-decoration:none; font-size:0.78rem; margin-bottom:0.7rem; }
+    .cg-source-link:hover { text-decoration:underline; }
+    .cg-empty { color:var(--text-secondary); padding:1.5rem 0.5rem; font-size:0.83rem; }
+    .cg-table-scroll { max-height:560px; overflow:auto; border-top:1px solid rgba(148,163,184,0.12); }
+    .cg-table-scroll th { position:sticky; top:0; z-index:1; background:#101c2a; }
+    @media (max-width: 800px) { .cg-layout { grid-template-columns:1fr; } .cg-caller-list { max-height:280px; } }
     @media (max-width: 640px) {
       .sidebar, .sidebar.collapsed { width: 52px; }
       .sidebar-brand-text, .sidebar-nav-label, .sidebar-footer-label { display: none; }
@@ -846,6 +874,7 @@
       .hero-metrics, .stat-cards { grid-template-columns: minmax(0, 1fr); }
       .bento-grid { grid-template-columns: minmax(0, 1fr); }
       .bento-col-4, .bento-col-6, .bento-col-8, .bento-col-12 { grid-column: 1; }
+      .cg-metrics { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -984,7 +1013,9 @@
       <div class="hero-right">
         <!-- Status Card -->
         <div class="hero-status-card">
-          <div class="hero-spinner"></div>
+          <div class="hero-complete-icon" role="img" aria-label="Analysis complete">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg>
+          </div>
           <div class="hero-status-info">
             <div class="hero-status-title">Analysis complete</div>
             <div class="hero-status-sub">Results from this repository</div>
@@ -1004,7 +1035,7 @@
             <div class="hero-legend">
               <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#38bdf8;"></span> Module</div>
               <div class="hero-legend-item"><span class="hero-legend-line"></span> Dependency</div>
-              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Higher risk</div>
+              <div class="hero-legend-item"><span class="hero-legend-dot" style="background:#fbbf24;"></span> Top ranked file</div>
             </div>
           </div>
         </div>
@@ -1128,11 +1159,11 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.35rem; margin-bottom:0.25rem;">AI System Prompt</h2>
-          <p style="color:var(--text-secondary); font-size:0.85rem;">Exhaustive LLM context for ChatGPT, Claude &amp; Gemini — copy directly into your AI chat session</p>
+          <p style="color:var(--text-secondary); font-size:0.85rem;">Repository-specific context from the static scan. Verify paths and behavior before relying on it.</p>
         </div>
         <button class="action-btn action-btn-primary" id="btn-copy-prompt">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          Copy Full AI Prompt
+          Copy Repository Context
         </button>
       </div>
       <pre id="ai-prompt-text" style="background:#080d1a; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1.1rem; font-size:0.8rem; color:#cbd5e1; max-height:72vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word;"></pre>
@@ -1145,55 +1176,50 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.35rem; margin-bottom:0.25rem;">Interactive Architecture Diagram</h2>
-          <p style="color:var(--text-secondary); font-size:0.85rem;">Synthesized with Mermaid.js • Pan, zoom, inspect layer hierarchies and dependency links</p>
+          <p style="color:var(--text-secondary); font-size:0.85rem;">Drag to pan, scroll to zoom, or use the controls to inspect repository dependencies.</p>
         </div>
         <div style="display:flex; gap:0.5rem;">
           <button class="diagram-btn" id="btn-zoom-in" title="Zoom in">+</button>
           <button class="diagram-btn" id="btn-zoom-out" title="Zoom out">-</button>
-          <button class="diagram-btn" id="btn-zoom-reset" title="Reset view">Reset</button>
+          <button class="diagram-btn" id="btn-zoom-reset" title="Fit the full diagram">Fit all</button>
           <button class="diagram-btn" id="btn-copy-mermaid" title="Copy Mermaid Code">Copy Code</button>
           <button class="diagram-btn" id="btn-download-svg" title="Download SVG">Download SVG</button>
         </div>
       </div>
 
       <div class="mermaid-container" id="main-mermaid-wrapper" style="min-height:650px;">
-        <div id="main-mermaid-canvas" class="mermaid-target" style="transform-origin:0 0; transition:transform 0.1s ease-out;"></div>
+        <div id="main-mermaid-canvas" class="mermaid-target"></div>
       </div>
     </div>
   </section>
 
   <!-- ── CALL GRAPH TAB — Two-Panel Interactive Explorer ──────── -->
   <section id="tab-callgraph" class="tab-section" role="tabpanel">
-    <div class="section-card" style="overflow-x:auto;">
-      <div style="display:flex; gap:0; min-height:520px;">
-        <!-- Left Panel: Top callers list -->
-        <div style="width:40%; border-right:1px solid rgba(255,255,255,0.08); padding-right:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="color:#fff; font-size:1rem;">Top Callers</h3>
-            <span style="font-size:0.75rem; color:var(--text-secondary);">by out-degree</span>
-          </div>
-          <input type="text" id="cg-search" placeholder="Filter callers…" style="padding:0.4rem 0.75rem; border-radius:7px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:var(--text-primary); font-size:0.83rem; outline:none;" />
-          <div id="cg-caller-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:2px;"></div>
+    <div class="section-card">
+      <div class="cg-intro"><h2>Trace call relationships</h2><p>Choose a source file, then a caller. Callee locations appear only when the symbol name maps to one indexed file; these are static call expressions, not verified runtime paths.</p></div>
+      <div class="cg-metrics" aria-label="Call graph summary">
+        <div class="cg-metric"><strong id="cg-edge-count">0</strong><span>Detected calls</span></div>
+        <div class="cg-metric"><strong id="cg-caller-count">0</strong><span>Calling symbols</span></div>
+        <div class="cg-metric"><strong id="cg-mapped-count">0</strong><span>Callers mapped to files</span></div>
+      </div>
+      <div class="cg-layout">
+        <div class="cg-panel">
+          <h3>Browse callers by file</h3>
+          <p class="cg-panel-note">Files with more detected calls appear first.</p>
+          <input type="search" id="cg-search" class="cg-search" placeholder="Search a file or caller" aria-label="Search files and callers" />
+          <div id="cg-caller-list" class="cg-caller-list"></div>
         </div>
-        <!-- Right Panel: Callee breakdown -->
-        <div style="width:60%; padding-left:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
-          <div>
-            <h3 style="color:#fff; font-size:1rem;" id="cg-selected-title">Select a caller to inspect →</h3>
-            <p style="font-size:0.78rem; color:var(--text-secondary);" id="cg-selected-sub"></p>
-          </div>
-          <!-- Mini frequency distribution bar chart -->
+        <div class="cg-panel">
+          <h3 id="cg-selected-title">Select a caller</h3>
+          <p id="cg-selected-path" class="cg-selected-path"></p>
+          <a id="cg-inspect-file" class="cg-source-link" href="#" target="_blank" rel="noopener" style="display:none;">Inspect all symbols in this file →</a>
+          <p class="cg-panel-note" id="cg-selected-sub">Choose a caller on the left to see what it calls.</p>
           <div id="cg-freq-chart" style="display:none; padding:0.5rem 0;"></div>
-          <div style="overflow-x:auto;">
+          <div class="cg-table-scroll">
             <table class="data-table" style="table-layout:fixed; width:100%;" id="cg-callee-table">
-              <colgroup><col style="width:44%"><col style="width:30%"><col style="width:14%"><col style="width:12%"></colgroup>
-              <thead>
-                <tr>
-                  <th>Callee</th><th>File</th><th>Layer</th><th style="text-align:right;">Calls</th>
-                </tr>
-              </thead>
-              <tbody id="cg-callee-tbody">
-                <tr><td colspan="4" style="text-align:center; color:var(--text-secondary); padding:2rem;">Click a caller on the left.</td></tr>
-              </tbody>
+              <colgroup><col style="width:40%"><col style="width:34%"><col style="width:15%"><col style="width:11%"></colgroup>
+              <thead><tr><th>Called symbol</th><th>Location</th><th>Layer</th><th style="text-align:right;">Calls</th></tr></thead>
+              <tbody id="cg-callee-tbody"><tr><td colspan="4" class="cg-empty">Choose a caller to inspect its outgoing calls.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1207,18 +1233,19 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
         <div>
           <h2 style="color:#ffffff; font-size:1.3rem;">Top 100 Project Contributors</h2>
-          <p style="color:var(--text-secondary); font-size:0.83rem;">Synced with GitHub API & Git Log • Ranked by verified commit activity</p>
+          <p id="contrib-source" style="color:var(--text-secondary); font-size:0.83rem;">Ranked by recorded commit activity</p>
         </div>
         <input type="text" id="contrib-search" placeholder="Search contributor handle…" style="padding:0.45rem 0.85rem; border-radius:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.15); color:#fff;" />
       </div>
 
+      <p id="contrib-empty" role="status" style="display:none; color:var(--text-secondary); padding:1.5rem 0;"></p>
       <table class="data-table" id="contrib-table">
         <thead>
           <tr>
             <th style="width:70px;">Rank</th>
             <th>Contributor</th>
             <th>Commits</th>
-            <th style="width:280px;">Contribution Share</th>
+            <th style="width:280px;">Share of Listed Commits</th>
             <th>Lines Added</th>
             <th>Lines Deleted</th>
           </tr>
@@ -1231,6 +1258,24 @@
   <!-- ── 7. SEMANTIC AUDIT TAB ── -->
   <section id="tab-semantic" class="tab-section" role="tabpanel">
     <div class="section-card">
+      <h2 style="color:#fff; margin-bottom:0.45rem;">Semantic Audit</h2>
+      <p style="color:var(--text-secondary); margin-bottom:1rem;">Run a focused review with your own OpenAI-compatible provider. Up to 12 ranked source files are sent to the endpoint you choose. The key is used for this request and is not saved.</p>
+      <form id="audit-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.85rem;margin-bottom:1rem;">
+        <label>Provider
+          <select id="audit-provider" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;">
+            <option value="https://api.openai.com/v1/chat/completions">OpenAI</option>
+            <option value="https://openrouter.ai/api/v1/chat/completions">OpenRouter</option>
+            <option value="https://api.groq.com/openai/v1/chat/completions">Groq</option>
+            <option value="https://api.deepseek.com/chat/completions">DeepSeek</option>
+            <option value="custom">Custom OpenAI-compatible endpoint</option>
+          </select>
+        </label>
+        <label>Model ID<input id="audit-model" required maxlength="120" placeholder="e.g. gpt-4.1-mini" autocomplete="off" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <label>API key<input id="audit-key" required type="password" maxlength="1000" autocomplete="off" placeholder="Used once, not saved" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <label id="audit-endpoint-label" style="display:none;grid-column:1/-1;">HTTPS chat completions URL<input id="audit-endpoint" type="url" placeholder="https://api.example.com/v1/chat/completions" style="display:block;width:100%;padding:0.65rem;background:#0d1117;color:#fff;border:1px solid #334155;border-radius:8px;"></label>
+        <div style="grid-column:1/-1;"><button class="diagram-btn" type="submit" id="audit-submit">Run Semantic Audit</button> <span id="audit-status" role="status" style="margin-left:0.7rem;color:var(--text-secondary);"></span></div>
+      </form>
+      <p style="color:var(--text-secondary);font-size:0.78rem;margin-bottom:1rem;">Model output is a review aid. Verify findings against the code before acting on them.</p>
       <div class="table-toolbar">
         <label for="semantic-severity">Severity:</label>
         <select id="semantic-severity">
@@ -1249,7 +1294,7 @@
         </select>
       </div>
       <div id="semantic-empty" style="display:none; padding: 2rem; text-align:center; color: var(--text-secondary);">
-        Semantic auditing is not configured. No security conclusion is available from this tab.
+        Semantic auditing has not run for this repository.
       </div>
       <table class="data-table" id="semantic-table" style="display:none">
         <thead>
@@ -1359,7 +1404,8 @@
     if (!_tabInited[id]) {
       _tabInited[id] = true;
       if (id === 'prompt')       initSystemPromptTab();
-      if (id === 'architecture') initMermaidDiagram();
+      if (id === 'overview')     initMermaidDiagram();
+      if (id === 'architecture') requestAnimationFrame(focusDiagram);
       if (id === 'callgraph')    initCallGraphChart();
       if (id === 'contributors') initContributorsTab();
       if (id === 'semantic')     initSemanticTab();
@@ -1455,7 +1501,7 @@
       { label: 'Files Indexed',   value: totalFiles,          sub: 'eligible repository files' },
       { label: 'Symbols Found',   value: totalSymbols,        sub: 'functions & classes' },
       { label: 'Call Edges',      value: callEdges.length,    sub: 'detected call expressions' },
-      { label: 'Contributors',    value: contributors.length, sub: repoStats.contributor_history === 'shallow clone' ? 'shallow clone history' : 'available history' },
+      { label: 'Contributors',    value: contributors.length, sub: repoStats.contributor_history || 'Git history unavailable' },
       { label: 'Top Language',    value: topLang.toUpperCase(),sub: 'dominant ecosystem' },
       { label: 'Top Contributor', value: topContrib,          sub: 'most active committer' },
     ];
@@ -1546,15 +1592,30 @@
     var canvas = document.getElementById('hero-topology-canvas');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
-    var hubs = [
-      { label: 'core',     x: 0.50, y: 0.45, r: 10, color: '#00b4d8', glow: 'rgba(0,180,216,0.6)'  },
-      { label: 'api',      x: 0.25, y: 0.30, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.5)' },
-      { label: 'models',   x: 0.72, y: 0.28, r:  7, color: '#818cf8', glow: 'rgba(129,140,248,0.5)'},
-      { label: 'services', x: 0.22, y: 0.62, r:  7, color: '#38bdf8', glow: 'rgba(56,189,248,0.4)' },
-      { label: 'data',     x: 0.65, y: 0.70, r:  7, color: '#00b4d8', glow: 'rgba(0,180,216,0.4)'  },
-      { label: 'utils',    x: 0.82, y: 0.50, r:  6, color: '#7dd3fc', glow: 'rgba(125,211,252,0.4)'},
-    ];
-    var edges = [[0,1],[0,2],[0,3],[0,4],[1,3],[2,5],[4,5],[1,2],[3,4]];
+    var rankedFiles = files.slice().sort(function(a,b){ return (b.rank_score || 0) - (a.rank_score || 0); }).slice(0, 8);
+    var hubs = rankedFiles.map(function(file, i) {
+      var angle = (2 * Math.PI * i / Math.max(rankedFiles.length, 1)) - Math.PI / 2;
+      return {
+        path: file.path, label: file.path.split(/[\\/]/).pop(),
+        x: 0.5 + 0.34 * Math.cos(angle), y: 0.5 + 0.30 * Math.sin(angle),
+        r: i === 0 ? 9 : 6, color: i === 0 ? '#fbbf24' : '#38bdf8',
+        glow: i === 0 ? 'rgba(251,191,36,0.5)' : 'rgba(56,189,248,0.45)'
+      };
+    });
+    var symbolFile = {};
+    symbols.forEach(function(s) { if (s.name && s.file) symbolFile[s.name] = s.file; });
+    var hubIndex = {};
+    hubs.forEach(function(h, i) { hubIndex[h.path] = i; });
+    var edgeSeen = {};
+    var edges = [];
+    callEdges.forEach(function(e) {
+      var from = hubIndex[symbolFile[e.caller] || symbolFile[(e.caller || '').split('.').pop()]];
+      var to = hubIndex[symbolFile[e.callee] || symbolFile[(e.callee || '').split('.').pop()]];
+      var key = from + ':' + to;
+      if (from != null && to != null && from !== to && !edgeSeen[key]) {
+        edges.push([from, to]); edgeSeen[key] = true;
+      }
+    });
     var floatPhase = 0;
 
     function resizeCanvas() {
@@ -1640,7 +1701,7 @@
     if (copyBtn) {
       copyBtn.addEventListener('click', function() {
         navigator.clipboard.writeText(aiPrompt || '');
-        showToast('AI System Prompt copied to clipboard!');
+        showToast('Repository context copied to clipboard!');
       });
     }
   }
@@ -1680,19 +1741,58 @@
     }
   }
 
-  var _currentZoom = 1;
+  var _mermaidStarted = false;
+  var fitDiagram = function() {};
+  var focusDiagram = function() {};
   function initMermaidDiagram() {
+    if (_mermaidStarted) return;
+    _mermaidStarted = true;
     loadMermaid(function() {
       var code = mermaidArch || 'flowchart TD\n  subgraph Core\n    app["App Kernel"]\n  end';
       var canvas = document.getElementById('main-mermaid-canvas');
       var overviewCanvas = document.getElementById('overview-mermaid-svg');
+      var wrapper = document.getElementById('main-mermaid-wrapper');
+      var scale = 1, panX = 0, panY = 0, diagramWidth = 800, diagramHeight = 600;
+      function applyView() {
+        canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+      }
+      fitDiagram = function() {
+        if (!canvas.querySelector('svg') || !wrapper.clientWidth) return;
+        scale = Math.max(0.1, Math.min(2, (wrapper.clientWidth - 40) / diagramWidth,
+          (wrapper.clientHeight - 40) / diagramHeight));
+        panX = (wrapper.clientWidth - diagramWidth * scale) / 2;
+        panY = (wrapper.clientHeight - diagramHeight * scale) / 2;
+        applyView();
+      };
+      function zoomAt(factor, x, y) {
+        var next = Math.max(0.1, Math.min(5, scale * factor));
+        panX = x - (x - panX) * next / scale;
+        panY = y - (y - panY) * next / scale;
+        scale = next;
+        applyView();
+      }
+      focusDiagram = function() {
+        fitDiagram();
+        if (scale < 0.75 && wrapper.clientWidth) {
+          zoomAt(0.75 / scale, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
+        }
+      };
 
       // Render main diagram first, then overview sequentially to avoid Mermaid
       // internal ID conflicts when two renders run concurrently.
       try {
         window.mermaid.render('mermaid-svg-main', code).then(function(res) {
           canvas.innerHTML = res.svg;
-          _applySvgSize(canvas, 600);
+          var svg = canvas.querySelector('svg');
+          var viewBox = svg.viewBox.baseVal;
+          diagramWidth = viewBox && viewBox.width ? viewBox.width : 800;
+          diagramHeight = viewBox && viewBox.height ? viewBox.height : 600;
+          svg.style.width = diagramWidth + 'px';
+          svg.style.height = diagramHeight + 'px';
+          svg.style.maxWidth = 'none';
+          canvas.style.width = diagramWidth + 'px';
+          canvas.style.height = diagramHeight + 'px';
+          focusDiagram();
           // Render overview only after main is done
           return window.mermaid.render('mermaid-svg-ov', code);
         }).then(function(res) {
@@ -1707,19 +1807,35 @@
         canvas.textContent = code;
       }
 
-      // Zoom & Pan controls
+      // Zoom at the viewport center; wheel zooms at the pointer, drag pans.
       document.getElementById('btn-zoom-in').onclick = function() {
-        _currentZoom = Math.min(_currentZoom + 0.2, 2.5);
-        canvas.style.transform = 'scale(' + _currentZoom + ')';
+        zoomAt(1.25, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
       };
       document.getElementById('btn-zoom-out').onclick = function() {
-        _currentZoom = Math.max(_currentZoom - 0.2, 0.4);
-        canvas.style.transform = 'scale(' + _currentZoom + ')';
+        zoomAt(0.8, wrapper.clientWidth / 2, wrapper.clientHeight / 2);
       };
-      document.getElementById('btn-zoom-reset').onclick = function() {
-        _currentZoom = 1;
-        canvas.style.transform = 'scale(1)';
-      };
+      document.getElementById('btn-zoom-reset').onclick = fitDiagram;
+      wrapper.addEventListener('wheel', function(event) {
+        event.preventDefault();
+        var rect = wrapper.getBoundingClientRect();
+        zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, event.clientX - rect.left, event.clientY - rect.top);
+      }, {passive:false});
+      var lastX, lastY;
+      wrapper.addEventListener('pointerdown', function(event) {
+        wrapper.setPointerCapture(event.pointerId);
+        wrapper.classList.add('dragging');
+        lastX = event.clientX; lastY = event.clientY;
+      });
+      wrapper.addEventListener('pointermove', function(event) {
+        if (!wrapper.hasPointerCapture(event.pointerId)) return;
+        panX += event.clientX - lastX; panY += event.clientY - lastY;
+        lastX = event.clientX; lastY = event.clientY;
+        applyView();
+      });
+      wrapper.addEventListener('pointerup', function(event) {
+        if (wrapper.hasPointerCapture(event.pointerId)) wrapper.releasePointerCapture(event.pointerId);
+        wrapper.classList.remove('dragging');
+      });
       document.getElementById('btn-copy-mermaid').onclick = function() {
         navigator.clipboard.writeText(code);
         showToast('Mermaid syntax copied to clipboard!');
@@ -1736,9 +1852,6 @@
     });
   }
 
-  // Trigger overview diagram render on initial load
-  setTimeout(initMermaidDiagram, 100);
-
   // ── CONTRIBUTORS TAB ─────────────────────────────────────────
   var _contribInited = false;
   function initContributorsTab() {
@@ -1747,7 +1860,24 @@
 
     var tbody = document.getElementById('contrib-tbody');
     var searchEl = document.getElementById('contrib-search');
-    var maxCommits = contributors.length ? Math.max.apply(null, contributors.map(function(c) { return c.commits; })) : 1;
+    var emptyEl = document.getElementById('contrib-empty');
+    var tableEl = document.getElementById('contrib-table');
+    var totalCommits = contributors.reduce(function(sum, c) { return sum + c.commits; }, 0) || 1;
+    document.getElementById('contrib-source').textContent = contributors.length
+      ? 'Source: ' + (repoStats.contributor_history || 'available Git history') + ' · Up to 100 contributors' +
+        (repoStats.contributor_history === 'GitHub API' ? ' · Line totals use a separately refreshed GitHub snapshot' : '')
+      : repoStats.contributor_history || 'Contributor history is unavailable for this source.';
+    if (!contributors.length) {
+      tableEl.style.display = 'none';
+      searchEl.style.display = 'none';
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = repoStats.contributor_history === 'Local folder no contributors'
+        ? 'Local folder — no contributors. Upload a ZIP that includes an initialized .git directory to show real commit history.'
+        : repoStats.contributor_history === 'Git repository with no commits'
+          ? 'This Git repository has no commits yet.'
+          : 'No contributor commits were found.';
+      return;
+    }
 
     function renderList(list) {
       while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
@@ -1756,25 +1886,32 @@
 
         // Rank badge
         var rankTd = document.createElement('td');
-        var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1);
+        var rank = c.rank || contributors.indexOf(c) + 1;
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         rankTd.innerHTML = '<span class="rank-medal">' + medal + '</span>';
         tr.appendChild(rankTd);
 
         // Contributor with Avatar
         var authTd = document.createElement('td');
-        var avatar = document.createElement('img');
-        avatar.className = 'contrib-avatar';
-        avatar.src = c.avatar_url || 'https://github.com/identicons/' + encodeURIComponent(c.author) + '.png';
-        avatar.onerror = function() { this.src = 'https://avatars.githubusercontent.com/u/9919?v=4'; };
-        authTd.appendChild(avatar);
+        if (c.avatar_url) {
+          var avatar = document.createElement('img');
+          avatar.className = 'contrib-avatar';
+          avatar.src = c.avatar_url;
+          avatar.alt = '';
+          avatar.onerror = function() { this.style.display = 'none'; };
+          authTd.appendChild(avatar);
+        }
 
-        var nameSpan = document.createElement('a');
+        var nameSpan = document.createElement(c.github_handle ? 'a' : 'span');
         nameSpan.textContent = c.author;
         nameSpan.style.color = '#ffffff';
         nameSpan.style.fontWeight = '600';
         nameSpan.style.textDecoration = 'none';
-        nameSpan.href = 'https://github.com/' + encodeURIComponent(c.github_handle || c.author);
-        nameSpan.target = '_blank';
+        if (c.github_handle) {
+          nameSpan.href = 'https://github.com/' + encodeURIComponent(c.github_handle);
+          nameSpan.target = '_blank';
+          nameSpan.rel = 'noopener noreferrer';
+        }
         authTd.appendChild(nameSpan);
         tr.appendChild(authTd);
 
@@ -1787,13 +1924,14 @@
 
         // Share Progress Bar
         var shareTd = document.createElement('td');
-        var pct = Math.round((c.commits / maxCommits) * 100);
+        var pct = Math.round((c.commits / totalCommits) * 100);
+        var pctLabel = pct === 0 && c.commits > 0 ? '<1%' : pct + '%';
         shareTd.innerHTML =
           '<div style="display:flex; align-items:center; gap:0.6rem;">' +
             '<div style="flex:1; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">' +
               '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg, #3b82d4, #8b5cf6); border-radius:4px;"></div>' +
             '</div>' +
-            '<span style="font-size:0.75rem; color:var(--text-secondary); width:36px;">' + pct + '%</span>' +
+            '<span style="font-size:0.75rem; color:var(--text-secondary); width:36px;">' + pctLabel + '</span>' +
           '</div>';
         tr.appendChild(shareTd);
 
@@ -1815,123 +1953,169 @@
     });
   }
 
-  // ── CALL GRAPH TAB — Two-Panel Explorer ─────────────────────
+  // ── CALL GRAPH TAB — Browse by source file ───────────────────
   function initCallGraphChart() {
-    var callerMap = {};
-    var callerCallees = {};
-    // Build symbol-to-layer lookup
-    var symLayer = {};
-    var symFile  = {};
-    symbols.forEach(function(s) { symLayer[s.name] = s.layer; symFile[s.name] = s.file; });
-
-    callEdges.forEach(function(e) {
-      callerMap[e.caller] = (callerMap[e.caller] || 0) + 1;
-      if (!callerCallees[e.caller]) callerCallees[e.caller] = [];
-      callerCallees[e.caller].push(e.callee);
+    var symbolsByName = new Map();
+    symbols.forEach(function(symbol) {
+      if (!symbolsByName.has(symbol.name)) symbolsByName.set(symbol.name, []);
+      symbolsByName.get(symbol.name).push(symbol);
     });
-
-    var sortedCallers = Object.keys(callerMap).sort(function(a, b) {
-      return callerMap[b] - callerMap[a];
-    }).slice(0, 80);
-
-    var listEl  = document.getElementById('cg-caller-list');
-    var titleEl = document.getElementById('cg-selected-title');
-    var subEl   = document.getElementById('cg-selected-sub');
-    var tbody   = document.getElementById('cg-callee-tbody');
-    var searchEl = document.getElementById('cg-search');
-    var selected = null;
-
-    var LAYER_BADGE_CLS = {
-      core:'badge-core', api:'badge-api', data_model:'badge-model',
-      service:'badge-service', middleware:'badge-middleware', ui:'badge-ui',
-      cli:'badge-cli', infra:'badge-infra', util:'badge-util', test:'badge-test'
-    };
-
-    var freqChartEl = document.getElementById('cg-freq-chart');
-
-    function renderFreqChart(aggregated) {
-      // aggregated: [{name, count, layer}] sorted desc by count, top 10
-      var top = aggregated.slice(0, 10);
-      if (!top.length) { freqChartEl.style.display = 'none'; return; }
-      var maxCount = top[0].count;
-      var bars = top.map(function(item) {
-        var pct = Math.round((item.count / maxCount) * 100);
-        var label = item.name.length > 18 ? item.name.slice(0, 17) + '…' : item.name;
-        return '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:3px;">' +
-           '<span style="width:120px; font-size:0.72rem; color:var(--text-secondary); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0;" title="' + escapeHtml(item.name) + '">' + escapeHtml(label) + '</span>' +
-          '<div style="flex:1; height:10px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">' +
-            '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg,#3b82d4,#8b5cf6); border-radius:3px;"></div>' +
-          '</div>' +
-          '<span style="font-size:0.72rem; color:#93c5fd; width:28px; text-align:right; flex-shrink:0;">' + item.count + '</span>' +
-          '</div>';
-      }).join('');
-      freqChartEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600;">Top callee distribution</div>' + bars;
-      freqChartEl.style.display = 'block';
+    function resolveSymbol(name) {
+      var matches = symbolsByName.get(name) || symbolsByName.get(String(name).split('.').pop()) || [];
+      var paths = new Set(matches.map(function(symbol) { return symbol.file; }));
+      return paths.size === 1 ? matches[0] : null;
     }
+
+    var callsByCaller = new Map();
+    callEdges.forEach(function(edge) {
+      if (!callsByCaller.has(edge.caller)) callsByCaller.set(edge.caller, []);
+      callsByCaller.get(edge.caller).push(edge.callee);
+    });
+    var callers = Array.from(callsByCaller.keys());
+    document.getElementById('cg-edge-count').textContent = callEdges.length.toLocaleString();
+    document.getElementById('cg-caller-count').textContent = callers.length.toLocaleString();
+    document.getElementById('cg-mapped-count').textContent = callers.filter(function(name) { return !!resolveSymbol(name); }).length.toLocaleString();
+
+    var listEl = document.getElementById('cg-caller-list');
+    var searchEl = document.getElementById('cg-search');
+    var titleEl = document.getElementById('cg-selected-title');
+    var pathEl = document.getElementById('cg-selected-path');
+    var subEl = document.getElementById('cg-selected-sub');
+    var sourceLink = document.getElementById('cg-inspect-file');
+    var tbody = document.getElementById('cg-callee-tbody');
+    var chartEl = document.getElementById('cg-freq-chart');
+    var selected = '';
+    var layerLabels = {
+      core:'Core', api:'API', data_model:'Model', service:'Service', middleware:'Middleware',
+      ui:'UI', cli:'CLI', infra:'Infrastructure', util:'Utility', test:'Test'
+    };
 
     function renderCallees(caller) {
       selected = caller;
-      var rawCallees = callerCallees[caller] || [];
+      var source = resolveSymbol(caller);
+      var raw = callsByCaller.get(caller) || [];
+      var counts = new Map();
+      raw.forEach(function(name) { counts.set(name, (counts.get(name) || 0) + 1); });
+      var targets = Array.from(counts, function(entry) {
+        return {name:entry[0], count:entry[1], symbol:resolveSymbol(entry[0])};
+      }).sort(function(a,b) { return b.count - a.count || a.name.localeCompare(b.name); });
       titleEl.textContent = caller;
+      pathEl.textContent = source ? source.file + (source.line ? ':' + source.line : '') : 'Source file could not be resolved uniquely';
+      subEl.textContent = targets.length + ' distinct called names · ' + raw.length + ' detected calls';
+      sourceLink.style.display = source ? '' : 'none';
+      if (source) sourceLink.href = window.__SUMMARY_URL__ + '?tab=symbols&file=' + encodeURIComponent(source.file);
 
-      // Aggregate: count occurrences of each callee name
-      var freq = {};
-      rawCallees.forEach(function(callee) { freq[callee] = (freq[callee] || 0) + 1; });
-      var aggregated = Object.keys(freq).map(function(name) {
-        return { name: name, count: freq[name], layer: symLayer[name] || 'core', file: symFile[name] || '' };
-      }).sort(function(a, b) { return b.count - a.count; });
-
-      var unique = aggregated.length;
-      var totalCalls = rawCallees.length;
-      subEl.textContent = unique + ' unique callee(s) · ' + totalCalls + ' total call(s)';
-
-      // Mini frequency chart
-      renderFreqChart(aggregated);
-
-      // Table: one row per unique callee, with call-count badge
-      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-      aggregated.slice(0, 100).forEach(function(item) {
-        var tr = document.createElement('tr');
-        var layer = item.layer;
-        var file  = item.file.split('/').pop() || item.file || '–';
-        var countBadge = item.count > 1
-          ? ' <span style="font-size:0.68rem;background:rgba(139,92,246,0.25);color:#c4b5fd;border-radius:4px;padding:1px 5px;margin-left:3px;">×' + item.count + '</span>'
-          : '';
-        tr.innerHTML =
-          '<td style="font-weight:600; color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0;" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + countBadge + '</td>' +
-          '<td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:0; color:var(--text-secondary); font-size:0.8rem;" title="' + escapeHtml(item.file) + '">' + escapeHtml(file) + '</td>' +
-          '<td><span class="badge ' + (LAYER_BADGE_CLS[layer] || 'badge-core') + '">' + escapeHtml(layer) + '</span></td>' +
-          '<td style="text-align:right; color:#93c5fd; font-weight:600; font-size:0.82rem;">' + item.count + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderCallerList(list) {
-      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
-      list.forEach(function(c) {
-        var row = document.createElement('div');
-        row.style.cssText = 'padding:0.45rem 0.75rem; border-radius:7px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-size:0.84rem; transition:background 0.12s;';
-        row.innerHTML = '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:75%; color:#e2e8f0;" title="' + escapeHtml(c) + '">' + escapeHtml(c) + '</span>' +
-          '<span style="color:var(--text-secondary); font-size:0.75rem; flex-shrink:0; margin-left:0.5rem;">' + (callerMap[c] || 0) + '</span>';
-        row.addEventListener('mouseenter', function() { row.style.background = 'rgba(59,130,212,0.12)'; });
-        row.addEventListener('mouseleave', function() { row.style.background = selected === c ? 'rgba(59,130,212,0.2)' : ''; });
-        row.addEventListener('click', function() {
-          document.querySelectorAll('#cg-caller-list > div').forEach(function(r) { r.style.background = ''; });
-          row.style.background = 'rgba(59,130,212,0.2)';
-          renderCallees(c);
+      chartEl.textContent = '';
+      if (targets.length) {
+        var label = document.createElement('p');
+        label.className = 'cg-panel-note';
+        label.textContent = 'Most frequent called names';
+        chartEl.appendChild(label);
+        targets.slice(0, 5).forEach(function(target) {
+          var row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;gap:0.6rem;margin:0.28rem 0;';
+          var name = document.createElement('span');
+          name.textContent = target.name;
+          name.title = target.name;
+          name.style.cssText = 'width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cbd5e1;font-size:0.75rem;';
+          var track = document.createElement('div');
+          track.style.cssText = 'flex:1;height:8px;border-radius:8px;background:rgba(148,163,184,0.12);overflow:hidden;';
+          var fill = document.createElement('div');
+          fill.style.cssText = 'height:100%;border-radius:8px;background:#38bdf8;width:' + Math.round(100 * target.count / targets[0].count) + '%;';
+          track.appendChild(fill);
+          row.append(name, track);
+          chartEl.appendChild(row);
         });
-        listEl.appendChild(row);
+      }
+      chartEl.style.display = targets.length ? 'block' : 'none';
+
+      tbody.textContent = '';
+      targets.forEach(function(target) {
+        var row = document.createElement('tr');
+        [target.name, target.symbol ? target.symbol.file : 'Location unresolved',
+          target.symbol ? (layerLabels[target.symbol.layer] || target.symbol.layer || '—') : '—',
+          String(target.count)].forEach(function(value, index) {
+          var cell = document.createElement('td');
+          cell.textContent = value;
+          cell.title = value;
+          if (index === 0) cell.style.fontWeight = '600';
+          if (index === 1 && target.symbol) cell.style.color = '#93c5fd';
+          if (index === 3) cell.style.textAlign = 'right';
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
+      });
+      document.querySelectorAll('.cg-caller').forEach(function(button) {
+        button.classList.toggle('active', button.dataset.caller === caller);
       });
     }
 
-    renderCallerList(sortedCallers);
-    if (sortedCallers.length) renderCallees(sortedCallers[0]);
+    function renderCallerList() {
+      var query = searchEl.value.trim().toLowerCase();
+      var matching = callers.filter(function(name) {
+        var source = resolveSymbol(name);
+        return !query || name.toLowerCase().includes(query) || (source && source.file.toLowerCase().includes(query));
+      });
+      var groups = new Map();
+      matching.forEach(function(name) {
+        var source = resolveSymbol(name);
+        var file = source ? source.file : 'Location unresolved';
+        if (!groups.has(file)) groups.set(file, []);
+        groups.get(file).push(name);
+      });
+      var ordered = Array.from(groups).sort(function(a,b) {
+        if (a[0] === 'Location unresolved') return 1;
+        if (b[0] === 'Location unresolved') return -1;
+        function calls(group) { return group[1].reduce(function(sum,name) { return sum + callsByCaller.get(name).length; }, 0); }
+        return calls(b) - calls(a) || a[0].localeCompare(b[0]);
+      });
+      listEl.textContent = '';
+      ordered.forEach(function(group, index) {
+        var file = group[0];
+        var names = group[1].sort(function(a,b) {
+          return callsByCaller.get(b).length - callsByCaller.get(a).length || a.localeCompare(b);
+        });
+        var details = document.createElement('details');
+        details.className = 'cg-file-group';
+        details.open = !!query || index < 3 || names.includes(selected);
+        var heading = document.createElement('summary');
+        heading.textContent = file;
+        var count = document.createElement('span');
+        count.textContent = names.length + ' callers';
+        heading.appendChild(count);
+        details.appendChild(heading);
+        names.forEach(function(name) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'cg-caller' + (name === selected ? ' active' : '');
+          button.dataset.caller = name;
+          var label = document.createElement('span');
+          label.textContent = name;
+          label.title = name;
+          var number = document.createElement('span');
+          number.textContent = callsByCaller.get(name).length;
+          button.append(label, number);
+          button.addEventListener('click', function() { renderCallees(name); });
+          details.appendChild(button);
+        });
+        listEl.appendChild(details);
+      });
+      if (!ordered.length) {
+        var empty = document.createElement('p');
+        empty.className = 'cg-empty';
+        empty.textContent = query ? 'No callers match this search.' : 'No call expressions were indexed for this repository.';
+        listEl.appendChild(empty);
+      }
+    }
 
-    searchEl.addEventListener('input', function() {
-      var q = searchEl.value.toLowerCase();
-      var filtered = sortedCallers.filter(function(c) { return c.toLowerCase().includes(q); });
-      renderCallerList(filtered);
-    });
+    renderCallerList();
+    if (callers.length) {
+      var initial = callers.filter(function(name) { return !!resolveSymbol(name); }).sort(function(a,b) {
+        return callsByCaller.get(b).length - callsByCaller.get(a).length;
+      })[0] || callers[0];
+      renderCallees(initial);
+    }
+    searchEl.addEventListener('input', renderCallerList);
   }
 
   // ── 11. SEMANTIC AUDIT TAB ────────────────────────────────────
@@ -1941,6 +2125,45 @@
     var tbody    = document.getElementById('semantic-tbody');
     var sevSel   = document.getElementById('semantic-severity');
     var catSel   = document.getElementById('semantic-category');
+    var provider = document.getElementById('audit-provider');
+    var endpointLabel = document.getElementById('audit-endpoint-label');
+    var form = document.getElementById('audit-form');
+    var status = document.getElementById('audit-status');
+    provider.addEventListener('change', function() {
+      endpointLabel.style.display = provider.value === 'custom' ? '' : 'none';
+    });
+    form.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      var runId = window.location.pathname.match(/^\/dashboard\/(run_[a-f0-9]{12})$/);
+      if (!runId) { status.textContent = 'Run a web analysis first to enable auditing.'; return; }
+      var keyInput = document.getElementById('audit-key');
+      var button = document.getElementById('audit-submit');
+      var payload = {
+        endpoint: provider.value === 'custom' ? document.getElementById('audit-endpoint').value.trim() : provider.value,
+        model: document.getElementById('audit-model').value.trim(),
+        api_key: keyInput.value
+      };
+      if (!payload.endpoint || !payload.model || !payload.api_key) {
+        status.textContent = 'Enter the endpoint, model, and API key.'; return;
+      }
+      button.disabled = true;
+      status.textContent = 'Auditing selected source files…';
+      try {
+        var response = await fetch('/api/audit/' + runId[1], {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        var data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Audit failed');
+        window.location.reload();
+      } catch (error) {
+        status.textContent = error.message;
+        button.disabled = false;
+      } finally {
+        keyInput.value = '';
+        payload.api_key = '';
+      }
+    });
 
     var SEV_COLOR = { high: '#f87171', medium: '#fbbf24', low: '#86efac' };
 
@@ -1982,6 +2205,16 @@
       });
     }
 
+    if (repoStats.semantic_status === 'available' && !semanticFindings.length) {
+      emptyEl.textContent = 'No findings in the files reviewed by ' + (repoStats.semantic_model || 'the configured model') + '. This is not a security guarantee.';
+    }
+    semanticFindings.forEach(function(f) {
+      if (f.category && !Array.from(catSel.options).some(function(o){ return o.value === f.category; })) {
+        var option = document.createElement('option'); option.value = f.category;
+        option.textContent = f.category.replace(/_/g, ' ');
+        catSel.appendChild(option);
+      }
+    });
     if (!semanticFindings || semanticFindings.length === 0) {
       emptyEl.style.display = '';
       tableEl.style.display = 'none';
