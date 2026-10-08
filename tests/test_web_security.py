@@ -28,6 +28,14 @@ def test_canonical_github_url():
     assert canonical_github_url("https://github.com/fastapi/fastapi") == "https://github.com/fastapi/fastapi.git"
 
 
+def test_landing_keeps_approved_editorial_theme():
+    html = web_module.LANDING_HTML
+    assert "--bg-dark: #171715" in html
+    assert ".headline { color: #f2eee7; font-family: Georgia" in html
+    assert ".btn-primary { background: #c96f4d" in html
+    assert "X-CSRF-Token" in html
+
+
 def test_cached_github_analysis_keeps_source_links(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
     ref = "a" * 40
