@@ -5,11 +5,18 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.request
 from pathlib import Path
 
 from code_compass.analysis.models import ContributorStat
+
+
+# A blob-filtered clone has to retrieve missing file contents to compute
+# --numstat. Large histories can exceed the web worker's 120-second deadline.
+MAX_FILTERED_NUMSTAT_COMMITS = 500
+MAX_NUMSTAT_SECONDS = 20
 
 
 def detect_github_slug(root: Path) -> str:
@@ -136,6 +143,58 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
     return stats
 
 
+def _local_git_stats(root: Path, *, with_lines: bool) -> list[ContributorStat]:
+    """Read complete local commit counts, with bounded line totals when viable."""
+    command = ["git", "-C", str(root), "log", "--no-ext-diff", "--use-mailmap", "--format=%aE|%aN"]
+    if with_lines:
+        command.insert(4, "--numstat")
+    env = os.environ.copy()
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_OPTIONAL_LOCKS="0")
+    try:
+        output = subprocess.run(
+            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, encoding="utf-8", errors="replace", check=True,
+            timeout=MAX_NUMSTAT_SECONDS if with_lines else 10, env=env,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+
+    stats_map: dict[str, dict[str, int | str]] = {}
+    current_author: str | None = None
+    for line in output.splitlines():
+        if not line:
+            continue
+        parts = line.split("\t")
+        if with_lines and len(parts) == 3:
+            if current_author is None:
+                continue
+            try:
+                stats_map[current_author]["lines_added"] += int(parts[0])
+                stats_map[current_author]["lines_deleted"] += int(parts[1])
+            except ValueError:
+                pass  # Binary files do not have text line counts.
+            continue
+        email, _, name = line.partition("|")
+        current_author = email.strip()
+        if not current_author:
+            continue
+        if current_author not in stats_map:
+            stats_map[current_author] = {
+                "name": name.strip(), "commits": 0, "lines_added": 0, "lines_deleted": 0,
+            }
+        stats_map[current_author]["commits"] += 1
+
+    sorted_stats = sorted(stats_map.items(), key=lambda pair: (-pair[1]["commits"], pair[0]))[:100]
+    return [
+        ContributorStat(
+            author=str(data["name"] or email), commits=int(data["commits"]),
+            lines_added=int(data["lines_added"]), lines_deleted=int(data["lines_deleted"]),
+            line_stats_available=with_lines, rank=index + 1,
+        )
+        for index, (email, data) in enumerate(sorted_stats)
+    ]
+
+
 def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[ContributorStat]:
     """Return per-author commit and line-change stats for the repo at *root*.
 
@@ -143,7 +202,6 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
     Otherwise use full local history, so the displayed rows and line totals
     describe the same commits and authors.
     """
-    stats_map: dict[str, dict] = {}
     has_local_git = False
     github_stats: list[ContributorStat] = []
 
@@ -177,57 +235,20 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
             if github_stats:
                 return github_stats
         try:
-            with repo:
-                with repo.git.custom_environment(
-                    GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_OPTIONAL_LOCKS="0",
-                ):
-                    log_output: str = repo.git.log("--no-ext-diff", "--numstat", "--use-mailmap", "--format=%aE|%aN")
-                current_author: str | None = None
-                current_name: str = ""
-
-                for line in log_output.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    parts = line.split("\t")
-                    if len(parts) == 3:
-                        if current_author is None:
-                            continue
-                        try:
-                            added = int(parts[0])
-                            deleted = int(parts[1])
-                        except ValueError:
-                            continue
-                        stats_map[current_author]["lines_added"] += added
-                        stats_map[current_author]["lines_deleted"] += deleted
-                    else:
-                        header_parts = line.split("|")
-                        current_author = header_parts[0].strip()
-                        current_name = header_parts[1].strip() if len(header_parts) > 1 else current_author
-                        if current_author not in stats_map:
-                            stats_map[current_author] = {
-                                "name": current_name,
-                                "commits": 0,
-                                "lines_added": 0,
-                                "lines_deleted": 0,
-                            }
-                        stats_map[current_author]["commits"] += 1
+            filtered = repo.git.config("--get", "remote.origin.promisor").strip().lower() == "true"
         except Exception:
-            pass
+            filtered = False
+        try:
+            commit_count = int(repo.git.rev_list("--count", "HEAD"))
+        except Exception:
+            commit_count = 0
+        if filtered and commit_count > MAX_FILTERED_NUMSTAT_COMMITS:
+            return github_stats or _local_git_stats(root, with_lines=False)
 
-    if stats_map:
-        sorted_stats = sorted(stats_map.items(), key=lambda kv: -kv[1]["commits"])[:100]
-        return [
-            ContributorStat(
-                author=data["name"] or email,
-                commits=data["commits"],
-                lines_added=data["lines_added"],
-                lines_deleted=data["lines_deleted"],
-                avatar_url="",
-                github_handle="",
-                rank=i + 1,
-            )
-            for i, (email, data) in enumerate(sorted_stats)
-        ]
+        local_stats = _local_git_stats(root, with_lines=True)
+        if local_stats:
+            return local_stats
+        # The line scan timed out or failed. Do not label zeroes as line totals.
+        return github_stats or _local_git_stats(root, with_lines=False)
 
     return github_stats

@@ -44,6 +44,43 @@ def test_missing_github_line_totals_fall_back_to_complete_git_history(tmp_path, 
     assert contributors[0].github_handle == ""
 
 
+def test_large_blob_filtered_clone_keeps_verified_counts_without_slow_line_scan(tmp_path, monkeypatch):
+    repo = Repo.init(tmp_path)
+    actor = Actor("Real Author", "author@example.com")
+    for text in ("first\n", "second\n"):
+        (tmp_path / "main.py").write_text(text, encoding="utf-8")
+        repo.index.add(["main.py"])
+        repo.index.commit("change", author=actor, committer=actor)
+    repo.create_remote("origin", "https://github.com/example/project.git")
+    repo.git.config("remote.origin.promisor", "true")
+    monkeypatch.setattr(git_stats, "MAX_FILTERED_NUMSTAT_COMMITS", 1, raising=False)
+    verified = [ContributorStat(
+        author="github-user", commits=2, github_handle="github-user",
+        line_stats_available=False,
+    )]
+    monkeypatch.setattr(git_stats, "_fetch_github_api_contributors", lambda owner, name: verified)
+
+    assert git_stats.collect_git_stats(tmp_path) == verified
+
+
+def test_large_blob_filtered_clone_without_api_uses_real_commit_counts(tmp_path, monkeypatch):
+    repo = Repo.init(tmp_path)
+    actor = Actor("Real Author", "author@example.com")
+    for text in ("first\n", "second\n"):
+        (tmp_path / "main.py").write_text(text, encoding="utf-8")
+        repo.index.add(["main.py"])
+        repo.index.commit("change", author=actor, committer=actor)
+    repo.create_remote("origin", "https://github.com/example/project.git")
+    repo.git.config("remote.origin.promisor", "true")
+    monkeypatch.setattr(git_stats, "MAX_FILTERED_NUMSTAT_COMMITS", 1, raising=False)
+    monkeypatch.setattr(git_stats, "_fetch_github_api_contributors", lambda owner, name: [])
+
+    contributors = git_stats.collect_git_stats(tmp_path)
+    assert len(contributors) == 1
+    assert (contributors[0].author, contributors[0].commits) == ("Real Author", 2)
+    assert not contributors[0].line_stats_available
+
+
 def test_zip_without_git_history_has_no_guessed_contributors(tmp_path):
     (tmp_path / "README.md").write_text("https://github.com/someone/else", encoding="utf-8")
     assert git_stats.collect_git_stats(tmp_path) == []
