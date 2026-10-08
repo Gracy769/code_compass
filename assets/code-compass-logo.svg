@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-labelledby="title">
+  <title id="title">Code Compass</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#3b82d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="10" fill="url(#tile)"/>
+  <circle cx="20" cy="20" r="13" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.8"/>
+  <path d="M20 4v5M20 31v5M4 20h5M31 20h5" stroke="#fff" stroke-opacity=".55" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="m25.8 14.2-3.7 7.9-7.9 3.7 3.7-7.9 7.9-3.7Z" fill="#fff"/>
+  <circle cx="20" cy="20" r="2" fill="#075985"/>
+</svg>

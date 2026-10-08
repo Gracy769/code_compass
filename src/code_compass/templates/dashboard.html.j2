@@ -131,16 +131,20 @@
     .sidebar-toggle {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
+      border-radius: 9px;
       color: var(--text-secondary);
       cursor: pointer;
-      font-size: 0.7rem;
-      padding: 0.3rem 0.45rem;
-      line-height: 1;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      padding: 0;
       flex-shrink: 0;
       transition: all 0.15s ease;
     }
     .sidebar-toggle:hover { background: rgba(0,180,216,0.15); color: #00b4d8; border-color: rgba(0,180,216,0.3); }
+    .sidebar-toggle svg { width: 18px; height: 18px; transition: transform 0.25s ease; }
+    .sidebar.collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 
     .sidebar-nav {
       flex: 1;
@@ -301,6 +305,22 @@
       transition: color 0.15s ease;
     }
     .nav-link:hover { color: #38bdf8; }
+    .new-analysis-link {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.42rem 0.75rem;
+      border: 1px solid rgba(56,189,248,0.38);
+      border-radius: 9px;
+      background: rgba(14,165,233,0.10);
+      color: #d8f4ff;
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+    .new-analysis-link:hover { background: rgba(14,165,233,0.22); transform: translateY(-1px); }
+    .new-analysis-link[hidden] { display: none; }
+    .new-analysis-link:focus-visible, .sidebar-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
     .action-btn {
       display: inline-flex;
       align-items: center;
@@ -651,98 +671,6 @@
       line-height: 1.65;
       max-width: 440px;
     }
-    .hero-input-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(0,180,216,0.22);
-      border-radius: 12px;
-      padding: 0.6rem 1rem;
-      backdrop-filter: blur(8px);
-    }
-    .hero-input-wrap input {
-      flex: 1;
-      background: none;
-      border: none;
-      outline: none;
-      color: var(--text-primary);
-      font-family: inherit;
-      font-size: 0.92rem;
-    }
-    .hero-input-wrap input::placeholder { color: var(--text-secondary); }
-    .hero-buttons {
-      display: flex;
-      gap: 0.85rem;
-      flex-wrap: wrap;
-    }
-    .hero-analyze-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding: 0.75rem 1.6rem;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #0284c7 0%, #3b82d4 50%, #0ea5e9 100%);
-      border: none;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 0.95rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 0 24px rgba(0,180,216,0.35), 0 4px 14px rgba(0,0,0,0.3);
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    .hero-analyze-btn::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%);
-      transform: translateX(-100%);
-      transition: transform 0.5s ease;
-    }
-    .hero-analyze-btn:hover::after { transform: translateX(100%); }
-    .hero-analyze-btn:hover { box-shadow: 0 0 32px rgba(0,180,216,0.5), 0 6px 18px rgba(0,0,0,0.35); transform: translateY(-1px); }
-
-    .hero-gh-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding: 0.75rem 1.4rem;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: var(--text-primary);
-      font-family: inherit;
-      font-size: 0.92rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.18s ease;
-      box-shadow: var(--clay-shadow);
-    }
-    .hero-gh-btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.28); transform: translateY(-1px); }
-    .hero-gh-btn.authed { background: linear-gradient(135deg, #0ea5e9, #3b82d4); border-color: rgba(0,180,216,0.4); box-shadow: 0 4px 14px rgba(0,180,216,0.28); }
-
-    .hero-chips {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-wrap: wrap;
-    }
-    .hero-chip-label { font-size: 0.75rem; color: var(--text-secondary); }
-    .hero-chip {
-      padding: 0.28rem 0.75rem;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: var(--text-secondary);
-      font-size: 0.78rem;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .hero-chip:hover { background: rgba(0,180,216,0.12); border-color: rgba(0,180,216,0.3); color: #38bdf8; }
-
     /* Hero Right Column */
     .hero-right {
       display: flex;
@@ -766,6 +694,16 @@
       color: #6ee7b7; background: rgba(16,185,129,0.13);
       border: 1px solid rgba(110,231,183,0.5);
       box-shadow: 0 0 0 4px rgba(16,185,129,0.08);
+    }
+    .hero-explore-note {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      width: fit-content;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid rgba(56,189,248,0.20);
+      border-radius: 10px;
+      background: rgba(56,189,248,0.06);
+      color: #a9d9ed;
+      font-size: 0.82rem;
     }
     .hero-status-info { flex: 1; min-width: 0; }
     .hero-status-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; color: #67e8f9; text-transform: uppercase; margin-bottom: 0.25rem; }
@@ -870,7 +808,6 @@
       .hero-section { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
       .hero-left, .hero-right { min-width: 0; padding: 1rem 0; }
       .hero-headline { font-size: clamp(1.5rem, 7vw, 2rem); overflow-wrap: anywhere; }
-      .hero-input-wrap input { min-width: 0; }
       .hero-metrics, .stat-cards { grid-template-columns: minmax(0, 1fr); }
       .bento-grid { grid-template-columns: minmax(0, 1fr); }
       .bento-col-4, .bento-col-6, .bento-col-8, .bento-col-12 { grid-column: 1; }
@@ -886,18 +823,20 @@
   <div class="sidebar-header">
     <div class="sidebar-brand">
       <div class="sidebar-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+        <svg width="24" height="24" viewBox="0 0 40 40" fill="none" role="img" aria-label="Code Compass logo">
+          <circle cx="20" cy="20" r="15" stroke="white" stroke-opacity=".75" stroke-width="2"/>
+          <path d="M20 2v6M20 32v6M2 20h6M32 20h6" stroke="white" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+          <path d="m25.8 14.2-3.7 7.9-7.9 3.7 3.7-7.9 7.9-3.7Z" fill="white"/>
+          <circle cx="20" cy="20" r="2.2" fill="#075985"/>
         </svg>
       </div>
       <span class="sidebar-brand-text">CODE<br>COMPASS</span>
     </div>
-    <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">◀</button>
+    <button class="sidebar-toggle" id="sidebar-toggle" type="button" title="Collapse sidebar" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="sidebar-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="19" height="17" rx="3"/><path d="M9 4v16M16 9l-3 3 3 3"/></svg></button>
   </div>
 
   <!-- Nav Items -->
-  <div class="sidebar-nav" role="tablist">
+  <div class="sidebar-nav" id="sidebar-nav" role="tablist">
     <button class="sidebar-nav-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" data-tab="overview" data-tooltip="Overview">
       <span class="sidebar-nav-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -957,6 +896,7 @@
     <span class="repo-badge" id="nav-repo-path">{{ repo_name }}</span>
   </div>
   <nav class="nav-actions">
+    <a href="/" class="new-analysis-link" id="new-analysis-link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Analyse new repo</a>
     <a href="https://github.com/Gracy769/code-compass-app#readme" target="_blank" rel="noopener noreferrer" class="nav-link">Docs</a>
     {% if github_slug %}
     <a href="https://github.com/{{ github_slug }}" target="_blank" rel="noopener noreferrer" class="nav-link">GitHub</a>
@@ -972,41 +912,12 @@
 
     <!-- ── HERO SECTION ────────────────────────────────────────── -->
     <div class="hero-section">
-      <!-- Left Column: Input & Action Controls -->
+      <!-- Left Column: Current repository guide -->
       <div class="hero-left">
-        <p class="hero-tagline">Architecture, Made Visible</p>
-        <h1 class="hero-headline">
-          Ingest any codebase.<br>
-          <span class="hl-cyan">Surface invisible architecture.</span>
-        </h1>
-        <p class="hero-subtext">Autonomous codebase onboarding and static analysis that turns complex systems into clear, interactive maps.</p>
-
-        <div class="hero-input-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text-secondary);flex-shrink:0;">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          <input type="text" id="hero-repo-input" placeholder="Paste a GitHub repository URL" />
-        </div>
-
-        <div class="hero-buttons">
-          <button class="hero-analyze-btn" onclick="window.location.href='/?repo='+encodeURIComponent(document.getElementById('hero-repo-input').value);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Analyze Codebase
-          </button>
-          <button class="hero-gh-btn" id="btn-gh-dynamic">
-            <svg id="gh-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-            </svg>
-            <span id="gh-btn-label">Use GitHub Token</span>
-          </button>
-        </div>
-
-        <div class="hero-chips">
-          <span class="hero-chip-label">Quick-launch:</span>
-          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Fhuggingface%2Ftransformers'">transformers</button>
-          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Ffastapi%2Ffastapi'">fastapi</button>
-          <button class="hero-chip" onclick="window.location.href='/?repo=https%3A%2F%2Fgithub.com%2Fredis%2Fredis'">redis</button>
-        </div>
+        <p class="hero-tagline">Your codebase, mapped</p>
+        <h1 class="hero-headline">Explore <span class="hl-cyan">{{ repo_name }}</span></h1>
+        <p class="hero-subtext">The analysis is ready. Follow the map into files, trace calls between symbols, and use the navigation to understand how this repository fits together.</p>
+        <div class="hero-explore-note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg>Choose a section in the sidebar to start exploring</div>
       </div>
 
       <!-- Right Column: Network Topology + Metrics -->
@@ -1375,7 +1286,9 @@
     function applySidebarState() {
       sidebar.classList.toggle('collapsed', collapsed);
       layout.classList.toggle('sidebar-collapsed', collapsed);
-      toggleBtn.textContent = collapsed ? '▶' : '◀';
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      toggleBtn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
     }
     applySidebarState();
 
@@ -1386,9 +1299,7 @@
     });
   }());
 
-  document.getElementById('btn-gh-dynamic').addEventListener('click', function() {
-    window.location.href = '/?connect=1';
-  });
+  if (window.location.protocol === 'file:') document.getElementById('new-analysis-link').hidden = true;
 
   // ── 3. Tab Router ─────────────────────────────────────────────
   var _tabInited = {};
