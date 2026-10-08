@@ -143,7 +143,9 @@ def _fetch_github_api_contributors(owner: str, repo: str) -> list[ContributorSta
     return stats
 
 
-def _local_git_stats(root: Path, *, with_lines: bool) -> list[ContributorStat]:
+def _local_git_stats(
+    root: Path, *, with_lines: bool, github_stats: list[ContributorStat] | None = None,
+) -> list[ContributorStat]:
     """Read complete local commit counts, with bounded line totals when viable."""
     command = ["git", "-C", str(root), "log", "--no-ext-diff", "--use-mailmap", "--format=%aE|%aN"]
     if with_lines:
@@ -184,14 +186,27 @@ def _local_git_stats(root: Path, *, with_lines: bool) -> list[ContributorStat]:
             }
         stats_map[current_author]["commits"] += 1
 
+    # Keep the complete local commit and line totals. Attach a GitHub identity
+    # only when that login is present in this repository's contributor API.
+    verified = {c.github_handle.casefold(): c for c in (github_stats or []) if c.github_handle}
+
+    def profile_for(email: str) -> ContributorStat | None:
+        if not email.lower().endswith("@users.noreply.github.com"):
+            return None
+        login = email.split("@", 1)[0].split("+")[-1].casefold()
+        return verified.get(login)
+
     sorted_stats = sorted(stats_map.items(), key=lambda pair: (-pair[1]["commits"], pair[0]))[:100]
     return [
         ContributorStat(
             author=str(data["name"] or email), commits=int(data["commits"]),
             lines_added=int(data["lines_added"]), lines_deleted=int(data["lines_deleted"]),
             line_stats_available=with_lines, rank=index + 1,
+            github_handle=(profile.github_handle if profile else ""),
+            avatar_url=(profile.avatar_url if profile else ""),
         )
         for index, (email, data) in enumerate(sorted_stats)
+        for profile in [profile_for(email)]
     ]
 
 
@@ -245,7 +260,7 @@ def collect_git_stats(root: Path, *, prefer_local: bool = False) -> list[Contrib
         if filtered and commit_count > MAX_FILTERED_NUMSTAT_COMMITS:
             return github_stats or _local_git_stats(root, with_lines=False)
 
-        local_stats = _local_git_stats(root, with_lines=True)
+        local_stats = _local_git_stats(root, with_lines=True, github_stats=github_stats)
         if local_stats:
             return local_stats
         # The line scan timed out or failed. Do not label zeroes as line totals.
