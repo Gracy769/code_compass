@@ -6,7 +6,7 @@
   <title>Code Compass — Summary — {{ repo_name }}</title>
   <style>
     /* ============================================================
-       CODE COMPASS SUMMARY — dark glassmorphic design (shared tokens)
+       CODE COMPASS SUMMARY — BASE LAYOUT AND COMPONENT STYLES
        ============================================================ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -284,6 +284,22 @@
       .pagination { gap: 0.5rem; }
       .starter-grid, .layer-grid { grid-template-columns:1fr; }
     }
+    {% include 'editorial-theme.css.j2' %}
+    /* Summary Explorer composition */
+    .nav-bar { padding-inline: clamp(1rem, 3vw, 3rem); }
+    .tab-strip { background: #1c1b19; border-color: #48443e; padding: .7rem clamp(1rem, 3vw, 3rem) 0; gap: .35rem; backdrop-filter: none; }
+    .tab-btn { border-radius: 6px 6px 0 0; border-bottom: 0; box-shadow: none; }
+    .tab-btn:hover { transform: none; }
+    .tab-btn.active { border-bottom: 2px solid #d98662; }
+    .explorer-intro { margin: .5rem 0 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #48443e; }
+    .explorer-intro h1 { font-size: clamp(2.5rem, 4vw, 4.2rem); line-height: 1.08; margin: .55rem 0; }
+    .explorer-intro p { color: #c7bdb1; font-size: 1rem; }
+    .explorer-heading h2 { font-size: 1.7rem; }
+    .starter-card { min-height: 178px; }
+    .starter-card .starter-path { color: #e2a686; }
+    .group-header-row td { position: sticky; top: 0; }
+    .pagination { gap: 1rem; flex-wrap: wrap; }
+    @media (max-width: 640px) { .tab-strip { padding-inline: .75rem; } .explorer-intro h1 { font-size: 2.45rem; } }
   </style>
 </head>
 <body>
