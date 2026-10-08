@@ -126,7 +126,7 @@ code-compass analyze /path/to/repository --strict
 ## Use the browser app
 
 1. Start the server with `code-compass serve --host 127.0.0.1 --port 8000` and open **http://127.0.0.1:8000**.
-2. Paste a `https://github.com/owner/repo` URL, upload a ZIP, or open the instant live demo. For a private GitHub repository, use the GitHub sign-in flow when configured or the token fallback offered in the interface.
+2. Paste a `https://github.com/owner/repo` URL, upload a ZIP, or open the instant live demo. For a private GitHub repository, choose **Sign in with GitHub**, authorize repository access, and select a repository. You can switch GitHub accounts in the repository picker. A personal access token is available as a fallback.
 3. Wait for the completion check, then move through **Overview**, **System Prompt**, **Architecture**, **Call Graph**, **Contributors**, and **Semantic Audit**. Open **Summary Explorer** for the file and symbol indexes.
 4. Choose **Analyse new repo** to return to ingestion without confusing the finished analysis with a new one.
 
@@ -156,11 +156,11 @@ Core local analysis needs no API key or database. These settings are optional fo
 
 | Setting | Purpose |
 | --- | --- |
-| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Enable server-side analysis caching using the `analysis_cache` table in [`src/code_compass/schema.sql`](src/code_compass/schema.sql). Without them, cache operations quietly become no-ops. |
-| `SUPABASE_ANON_KEY` | Enables the browser-side Supabase GitHub sign-in option when paired with `SUPABASE_URL` and a configured provider. |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Enable CLI analysis caching using the `analysis_cache` table in [`src/code_compass/schema.sql`](src/code_compass/schema.sql). Browser GitHub analyses do not use shared caching, because they can contain private code. |
+| `SUPABASE_ANON_KEY` | Enables browser-side Supabase GitHub sign-in when paired with `SUPABASE_URL` and a configured GitHub OAuth provider. Add `https://YOUR_HOST/auth/callback` to Supabase's allowed redirect URLs. |
 | `HOST` + `PORT` | Bind address and port for [`server.py`](server.py), including the supplied Docker/Railway launcher. The `code-compass serve` command uses its `--host` and `--port` flags instead. |
 
-GitHub credentials entered in the browser are sent with the analysis request for cloning and GitHub API access. Audit credentials are supplied separately when an audit is run. Keep a hosted service behind HTTPS and configure your Supabase and GitHub OAuth settings for its public origin.
+GitHub credentials entered in the browser are sent with the analysis request for cloning and GitHub API access. Audit credentials are supplied separately when an audit is run. Keep a hosted service behind HTTPS and configure your Supabase and GitHub OAuth settings for its public origin. GitHub OAuth's `repo` scope grants broad repository access, including write permission; it cannot limit access to selected repositories. Repository-level installation choices require a GitHub App integration.
 
 ## Accuracy and limits
 

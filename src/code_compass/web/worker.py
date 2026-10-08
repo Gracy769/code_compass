@@ -130,8 +130,9 @@ def main() -> None:
     }), encoding="utf-8")
     (work_dir / "analysis.json").write_text(json.dumps(dataclasses.asdict(result)), encoding="utf-8")
     written = render(result, work_dir / "dashboard.html", **render_args)
-    written.chmod(0o600)
-    written.with_name("dashboard-summary.html").chmod(0o600)
+    if os.name != "nt":
+        written.chmod(0o600)
+        written.with_name("dashboard-summary.html").chmod(0o600)
 
 
 if __name__ == "__main__":

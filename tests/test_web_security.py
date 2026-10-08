@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import zipfile
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -36,27 +35,62 @@ def test_landing_keeps_approved_editorial_theme():
     assert "X-CSRF-Token" in html
 
 
-def test_cached_github_analysis_keeps_source_links(tmp_path, monkeypatch):
+def test_landing_allows_configured_supabase_auth_origin(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    with TestClient(web_module.app) as client:
+        response = client.get("/")
+    assert "https://example.supabase.co" in response.headers["content-security-policy"]
+
+
+def test_private_github_analysis_uses_provider_token_without_shared_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
-    ref = "a" * 40
-    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: SimpleNamespace(
-        repo_stats={"github_ref": ref},
-    ))
-    rendered = []
+    calls = []
 
-    def render_stub(_result, path, **kwargs):
-        rendered.append(kwargs)
-        path.write_text("dashboard", encoding="utf-8")
-        path.with_name("dashboard-summary.html").write_text("summary", encoding="utf-8")
+    async def worker_stub(kind, source, work_dir, **kwargs):
+        calls.append((kind, source, kwargs["token"]))
 
-    monkeypatch.setattr(web_module, "render", render_stub)
+    monkeypatch.setattr(web_module, "_bounded_worker", worker_stub)
     with TestClient(web_module.app, base_url="https://testserver") as client:
         client.get("/")
         response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
-                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", "")})
+                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", ""),
+                                        "Authorization": "Bearer github-provider-token"})
     assert response.status_code == 200
-    assert rendered[-1]["github_slug"] == "o/r"
-    assert rendered[-1]["github_ref"] == ref
+    assert calls == [("git", "https://github.com/o/r.git", "github-provider-token")]
+
+
+def test_oauth_callback_renders_page_for_browser_fragment():
+    with TestClient(web_module.app, base_url="https://testserver") as client:
+        response = client.get("/auth/callback#provider_token=example", follow_redirects=False)
+    assert response.status_code == 200
+    assert "getSupabaseClient()" in response.text
+    assert "scopes: 'repo read:user user:email'" in response.text
+    assert "githubToken || sessionStorage.getItem('gh_token')" in response.text
+
+
+def test_repo_picker_requires_github_provider_token(monkeypatch):
+    with TestClient(web_module.app) as client:
+        assert client.get("/api/repos").status_code == 401
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'[{"name":"private","full_name":"owner/private","html_url":"https://github.com/owner/private","private":true}]'
+
+    def fake_urlopen(request, timeout):
+        assert request.headers["Authorization"] == "Bearer github-provider-token"
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    with TestClient(web_module.app) as client:
+        response = client.get("/api/repos", headers={"Authorization": "Bearer github-provider-token"})
+    assert response.status_code == 200
+    assert response.json()["repos"][0]["full_name"] == "owner/private"
 
 
 def test_zip_traversal_rejected(tmp_path):

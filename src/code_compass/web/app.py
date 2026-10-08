@@ -24,7 +24,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from code_compass.analysis import analyze as run_analysis
-from code_compass.cache_manager import compute_hash, load_cache, save_cache
 from code_compass.discovery import discover
 from code_compass.renderer import render
 from code_compass.web.security import (
@@ -57,13 +56,21 @@ _CSP = (
 async def add_security_headers(request, call_next):
     response = await call_next(request)
     if "text/html" in response.headers.get("content-type", ""):
-        response.headers["Content-Security-Policy"] = _CSP
+        csp = _CSP
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        parsed = urlsplit(supabase_url)
+        local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
+        if (parsed.scheme == "https" or local_http) and re.fullmatch(r"[A-Za-z0-9.-]+(?::[0-9]{1,5})?", parsed.netloc):
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            csp = csp.replace("https://api.github.com;", f"https://api.github.com {origin};")
+        response.headers["Content-Security-Policy"] = csp
     return response
 
 
 STORAGE_DIR = Path(tempfile.gettempdir()) / "code_compass_web_runs"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-STORAGE_DIR.chmod(0o700)
+if os.name != "nt":
+    STORAGE_DIR.chmod(0o700)
 JOB_SLOTS = asyncio.Semaphore(2)
 SESSION_COOKIE = "code_compass_session"
 CSRF_COOKIE = "csrf_token"
@@ -83,7 +90,6 @@ class GitAnalyzeRequest(BaseModel):
     url: str
     strict: bool = True
     semantic: bool = False
-    token: str | None = None
 
 
 class AuditRequest(BaseModel):
@@ -945,8 +951,9 @@ LANDING_HTML = """<!DOCTYPE html>
   <div class="modal-backdrop" id="repoPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;">
     <div class="modal-box" style="max-height:60vh;overflow-y:auto;">
       <div class="modal-title">Your GitHub Repositories</div>
+      <div id="repoPickerStatus" role="status" style="margin-top:0.75rem;"></div>
       <div id="repoPickerList" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
-      <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('repoPickerModal').style.display='none'">Close</button></div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="switchGitHubAccount()">Switch account</button><button class="btn btn-secondary" onclick="document.getElementById('repoPickerModal').style.display='none'">Close</button></div>
     </div>
   </div>
 
@@ -1097,7 +1104,7 @@ LANDING_HTML = """<!DOCTYPE html>
       setAnalyzingState('CLONING & PARSING CODEBASE', 'Ingesting files, building AST, and mapping call relationships...');
 
       try {
-        const token = githubToken;
+        const token = githubToken || sessionStorage.getItem('gh_token');
         // Step 2: Send token in Authorization header, not in request body.
         // Step 4: Echo CSRF cookie value in X-CSRF-Token header (double-submit pattern).
         const csrfToken = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
@@ -1202,30 +1209,31 @@ LANDING_HTML = """<!DOCTYPE html>
       document.getElementById('analyzeBtn').style.opacity = '1';
     }
 
-    // GitHub Auth & Repo Picker
-    // Auto-detect OAuth tokens in URL hash from Supabase redirect
-    (function checkOAuthHash() {
-      if (window.location.hash) {
-        try {
-          const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          const pToken = hashParams.get('provider_token');
-          const aToken = hashParams.get('access_token');
-          if (pToken) {
-            localStorage.setItem('gh_token', pToken);
-          }
-          if (aToken) {
-            localStorage.setItem('sb_access_token', aToken);
-          }
-          if (pToken || aToken) {
-            // Clean up the URL hash cleanly without reloading
-            history.replaceState(null, '', window.location.pathname);
-          }
-        } catch (_) {}
-      }
-    })();
+    // Supabase processes the OAuth callback on this page and exposes the GitHub
+    // provider token in the auth session. A Supabase access token cannot call GitHub.
+    let supabaseClientPromise;
+    async function getSupabaseClient() {
+      if (!supabaseClientPromise) supabaseClientPromise = (async () => {
+        const cfg = await fetch('/api/supabase-config').then(r => r.json());
+        if (!cfg.enabled) return null;
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        const sb = createClient(cfg.supabase_url, cfg.anon_key);
+        sb.auth.onAuthStateChange((event, session) => {
+          if (session?.provider_token) sessionStorage.setItem('gh_token', session.provider_token);
+          if (event === 'SIGNED_OUT') sessionStorage.removeItem('gh_token');
+          updateGhButton();
+        });
+        const { data } = await sb.auth.getSession();
+        if (data.session?.provider_token) sessionStorage.setItem('gh_token', data.session.provider_token);
+        else if (!data.session) sessionStorage.removeItem('gh_token');
+        updateGhButton();
+        return sb;
+      })().catch(() => null);
+      return supabaseClientPromise;
+    }
 
     function _hasGitHubCredential() {
-      return !!(localStorage.getItem('gh_token') || localStorage.getItem('sb_access_token'));
+      return !!sessionStorage.getItem('gh_token');
     }
 
     function updateGhButton() {
@@ -1234,13 +1242,22 @@ LANDING_HTML = """<!DOCTYPE html>
     }
 
     async function openRepoPicker() {
-      const ghToken = localStorage.getItem('gh_token') || '';
-      const data = await fetch('/api/repos', {
-        headers: ghToken ? { 'Authorization': 'Bearer ' + ghToken } : {}
-      }).then(r => r.json()).catch(() => ({ repos: [], authenticated: false }));
-
-      if (!data.authenticated || !data.repos.length) { openTokenModal(); return; }
+      const modal = document.getElementById('repoPickerModal');
+      const status = document.getElementById('repoPickerStatus');
       const list = document.getElementById('repoPickerList');
+      modal.style.display = 'flex';
+      list.innerHTML = '';
+      status.textContent = 'Loading repositories…';
+      const ghToken = sessionStorage.getItem('gh_token');
+      if (!ghToken) { status.textContent = 'Connect your GitHub account to see repositories.'; return; }
+      let data;
+      try {
+        const response = await fetch('/api/repos', { headers: { 'Authorization': 'Bearer ' + ghToken } });
+        data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Could not load repositories.');
+      } catch (error) { status.textContent = error.message; return; }
+      if (!data.repos.length) { status.textContent = 'No accessible repositories found for this account.'; return; }
+      status.textContent = 'Choose a repository to analyze:';
       list.innerHTML = '';
       data.repos.forEach(r => {
         const btn = document.createElement('button');
@@ -1250,25 +1267,40 @@ LANDING_HTML = """<!DOCTYPE html>
         btn.onclick = () => { document.getElementById('repoUrlInput').value = r.url; document.getElementById('repoPickerModal').style.display = 'none'; startAnalysis(); };
         list.appendChild(btn);
       });
-      document.getElementById('repoPickerModal').style.display = 'flex';
+    }
+
+    async function startGitHubOAuth() {
+      const sb = await getSupabaseClient();
+      if (!sb) { openTokenModal(); return; }
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'github',
+        options: { scopes: 'repo read:user user:email', redirectTo: window.location.origin + '/auth/callback' }
+      });
+      if (error) alert('GitHub sign-in failed: ' + error.message);
+    }
+
+    async function switchGitHubAccount() {
+      const sb = await getSupabaseClient();
+      if (sb) await sb.auth.signOut();
+      sessionStorage.removeItem('gh_token');
+      document.getElementById('repoPickerModal').style.display = 'none';
+      await startGitHubOAuth();
     }
 
     async function handleGitHubAuth() {
-      if (_hasGitHubCredential()) { openRepoPicker(); return; }
-      try {
-        const cfg = await fetch('/api/supabase-config').then(r => r.json()).catch(() => null);
-        if (!cfg || !cfg.enabled) { openTokenModal(); return; }
-        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-        const sb = createClient(cfg.supabase_url, cfg.anon_key);
-        const { error } = await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.origin + '/auth/callback' } });
-        if (error) { openTokenModal(); }
-      } catch (_) {
-        openTokenModal();
-      }
+      await getSupabaseClient();
+      if (_hasGitHubCredential()) { await openRepoPicker(); return; }
+      await startGitHubOAuth();
     }
 
-    // On load: sync button label with stored credential state
+    // Initialize on the callback page too, so Supabase can process its URL hash.
     updateGhButton();
+    getSupabaseClient().then(() => {
+      if (window.location.pathname === '/auth/callback') {
+        history.replaceState(null, '', '/');
+        if (_hasGitHubCredential()) openRepoPicker();
+      }
+    });
   </script>
 </body>
 </html>
@@ -1307,54 +1339,46 @@ async def supabase_config() -> dict:
     return {"enabled": bool(url and anon_key), "supabase_url": url if url else "", "anon_key": anon_key if anon_key else ""}
 
 
-from fastapi.responses import RedirectResponse  # noqa: E402
-
-
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
-    """Exchange Supabase OAuth code for a session and redirect to homepage."""
-    code = request.query_params.get("code")
-    if not code:
-        # Implicit hash-based redirect carries fragments automatically
-        return RedirectResponse(url="/")
-    try:
-        from code_compass.cache_manager import _get_client
-        client = _get_client()
-        if client is None:
-            return RedirectResponse(url="/")
-        session_data = client.auth.exchange_code_for_session({"auth_code": code})
-        access_token = session_data.session.access_token if session_data and session_data.session else None
-        if not access_token:
-            return RedirectResponse(url="/")
-        response = RedirectResponse(url="/")
-        response.set_cookie("sb_session", access_token, httponly=True, samesite="strict", max_age=3600)
-        return response
-    except Exception:
-        return RedirectResponse(url="/")
+    """Render the landing page so supabase-js can consume its OAuth fragment."""
+    return await homepage(request)
 
 
 @app.get("/api/repos")
 async def list_repos(request: Request) -> dict:
-    """Return the authenticated user's GitHub repos via GitHub provider token or session."""
+    """Return repositories available to the supplied GitHub provider token."""
     auth_hdr = request.headers.get("Authorization", "")
-    token = auth_hdr.replace("Bearer ", "").strip() if auth_hdr.startswith("Bearer ") else request.cookies.get("sb_session", "")
+    token = auth_hdr.removeprefix("Bearer ").strip() if auth_hdr.startswith("Bearer ") else ""
     if not token:
-        return {"repos": [], "authenticated": False}
+        raise HTTPException(status_code=401, detail="Connect GitHub to list repositories.")
     try:
         import json as _json
+        import urllib.error
         import urllib.request
-        req2 = urllib.request.Request(
-            "https://api.github.com/user/repos?per_page=30&sort=updated",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "Code-Compass"}
-        )
-        with urllib.request.urlopen(req2, timeout=5) as resp:
-            repos = _json.loads(resp.read())
+        repos = []
+        for page in range(1, 11):
+            req2 = urllib.request.Request(
+                f"https://api.github.com/user/repos?per_page=100&page={page}&sort=updated&affiliation=owner,collaborator,organization_member",
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "Code-Compass"}
+            )
+            with urllib.request.urlopen(req2, timeout=10) as resp:
+                batch = _json.loads(resp.read())
+            if not isinstance(batch, list):
+                raise ValueError("Unexpected GitHub response")
+            repos.extend(batch)
+            if len(batch) < 100:
+                break
         return {
-            "repos": [{"name": r["name"], "full_name": r["full_name"], "url": r["html_url"]} for r in repos if isinstance(r, dict)],
+            "repos": [{"name": r["name"], "full_name": r["full_name"], "url": r["html_url"]} for r in repos if isinstance(r, dict) and all(k in r for k in ("name", "full_name", "html_url"))],
             "authenticated": True,
         }
-    except Exception:
-        return {"repos": [], "authenticated": False}
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise HTTPException(status_code=401, detail="GitHub access expired or was not granted. Switch accounts and authorize again.") from exc
+        raise HTTPException(status_code=502, detail="GitHub could not list repositories.") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="GitHub could not list repositories.") from exc
 
 
 
@@ -1370,26 +1394,6 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    hash_str = compute_hash(repo_url)
-    cached = load_cache(hash_str, ttl_days=7)
-    cached_ref = str(cached.repo_stats.get("github_ref", "")) if cached is not None else ""
-    # Older cache entries have no source revision and cannot produce working
-    # GitHub links. Refresh them once, then keep cache hits fully linked.
-    if cached is not None and re.fullmatch(r"[0-9a-fA-F]{40}", cached_ref):
-        run_id, work_dir = _new_run(request)
-        try:
-            slug = urlsplit(repo_url).path.strip("/").removesuffix(".git")
-            render(cached, work_dir / "dashboard.html", repo_name=slug.split("/")[-1],
-                   github_slug=slug, github_ref=cached_ref)
-            return {
-                "success": "true",
-                "analysis_id": run_id,
-                "dashboard_url": f"/dashboard/{run_id}",
-                "summary_url": f"/summary/{run_id}",
-            }
-        except Exception:
-            shutil.rmtree(work_dir, ignore_errors=True)  # fall through to full analysis
-
     run_id, work_dir = _new_run(request)
 
     # Step 2: Extract token from Authorization header instead of request body.
@@ -1402,17 +1406,6 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
         if isinstance(exc, HTTPException):
             raise
         raise HTTPException(status_code=500, detail="Repository analysis failed or timed out.") from exc
-
-    try:
-        import json as _json
-        from code_compass.cache_manager import _dict_to_analysis_result
-        _aj = work_dir / "analysis.json"
-        if _aj.is_file():
-            _data = _json.loads(_aj.read_text(encoding="utf-8"))
-            _result = _dict_to_analysis_result(_data)
-            save_cache(hash_str, _result, ttl_days=7, repo_name=Path(urlsplit(repo_url).path).stem)
-    except Exception:
-        pass
 
     return {
         "success": "true",
