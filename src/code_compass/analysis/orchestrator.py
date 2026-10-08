@@ -7,10 +7,11 @@ from code_compass.analysis.git_stats import collect_git_stats
 from code_compass.analysis.js_analyzer import analyze_js
 from code_compass.analysis.models import AnalysisResult
 from code_compass.analysis.python_analyzer import analyze_python
+from code_compass.analysis.semantic_auditor import run_semantic_audit
 from code_compass.discovery import RepoManifest
 
 
-def analyze(manifest: RepoManifest, strict: bool = False) -> AnalysisResult:
+def analyze(manifest: RepoManifest, strict: bool = False, semantic: bool = False) -> AnalysisResult:
     """Analyse all files in *manifest* and return an :class:`AnalysisResult`.
 
     * Python files are parsed with stdlib :mod:`ast`.
@@ -20,6 +21,8 @@ def analyze(manifest: RepoManifest, strict: bool = False) -> AnalysisResult:
       to :attr:`AnalysisResult.parse_errors` and execution continues.
     * The dead-code pass runs only when *strict* is ``True``.
     * Git contributor stats are collected unconditionally.
+    * The semantic-audit pass runs only when *semantic* is ``True``. It selects
+      the top-5 most complex files and runs ``run_semantic_audit``.
     """
     result = AnalysisResult()
 
@@ -46,5 +49,8 @@ def analyze(manifest: RepoManifest, strict: bool = False) -> AnalysisResult:
         result.dead_code = find_dead_code(result)
 
     result.contributors = collect_git_stats(manifest.root)
+
+    if semantic:
+        result.semantic_findings = run_semantic_audit(result, manifest.root)
 
     return result

@@ -492,6 +492,7 @@
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-symbols"      data-tab="symbols">Symbols</button>
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-callgraph"    data-tab="callgraph">Call Graph</button>
   <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-contributors" data-tab="contributors">Contributors</button>
+  <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="tab-semantic"     data-tab="semantic">Semantic Audit</button>
 </div>
 
 <!-- ============================================================
@@ -623,6 +624,44 @@
     </div>
   </section>
 
+  <!-- ── SEMANTIC AUDIT ── -->
+  <section id="tab-semantic" class="tab-section" role="tabpanel">
+    <div class="section-card">
+      <div class="table-toolbar">
+        <label for="semantic-severity">Severity:</label>
+        <select id="semantic-severity">
+          <option value="">All</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <label for="semantic-category">Category:</label>
+        <select id="semantic-category">
+          <option value="">All</option>
+          <option value="race_condition">Race Condition</option>
+          <option value="state_mutation">State Mutation</option>
+          <option value="error_handling">Error Handling</option>
+          <option value="insecure_defaults">Insecure Defaults</option>
+        </select>
+      </div>
+      <div id="semantic-empty" style="display:none; padding: 2rem; text-align:center; color: var(--text-secondary);">
+        No semantic findings — run with <code>--semantic</code> to enable LLM-powered audit.
+      </div>
+      <table class="data-table" id="semantic-table" style="display:none">
+        <thead>
+          <tr>
+            <th data-col="file"     data-type="str">File</th>
+            <th data-col="severity" data-type="str">Severity</th>
+            <th data-col="category" data-type="str">Category</th>
+            <th data-col="summary"  data-type="str">Summary</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="semantic-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
 </div><!-- /.tab-content -->
 
 <!-- ============================================================
@@ -640,6 +679,7 @@
   var contributors = D.contributors || [];
   var parseErrors  = D.parse_errors || [];
   var deadCode     = new Set(D.dead_code || []);
+  var semanticFindings = D.semantic_findings || [];
 
   // ── 2. Nav ────────────────────────────────────────────────────
   document.getElementById('nav-repo-path').textContent = window.__REPO_NAME__ || '';
@@ -660,6 +700,7 @@
       _chartInited[id] = true;
       if (id === 'callgraph')    initCallGraphChart();
       if (id === 'contributors') initContributorsChart();
+      if (id === 'semantic')     initSemanticTab();
     }
   }
 
@@ -1088,7 +1129,94 @@
     });
   }
 
-  // ── 10. Kick off default tab ──────────────────────────────────
+  // ── 10. Semantic Audit tab ────────────────────────────────────────
+  var _semanticInited = false;
+  function initSemanticTab() {
+    if (_semanticInited) return;
+    _semanticInited = true;
+
+    var emptyEl  = document.getElementById('semantic-empty');
+    var tableEl  = document.getElementById('semantic-table');
+    var tbody    = document.getElementById('semantic-tbody');
+    var sevSel   = document.getElementById('semantic-severity');
+    var catSel   = document.getElementById('semantic-category');
+
+    var SEV_COLOR = { high: '#f87171', medium: '#fbbf24', low: '#86efac' };
+    var CAT_LABEL = {
+      race_condition:   'Race Condition',
+      state_mutation:   'State Mutation',
+      error_handling:   'Error Handling',
+      insecure_defaults:'Insecure Defaults',
+    };
+
+    function renderFindings(items) {
+      while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+      items.forEach(function (f) {
+        var tr = document.createElement('tr');
+
+        // File — show basename only for readability
+        var parts = f.file ? f.file.replace(/\\/g, '/').split('/') : [''];
+        var fileTd = document.createElement('td');
+        fileTd.title = f.file || '';
+        fileTd.textContent = parts[parts.length - 1];
+        tr.appendChild(fileTd);
+
+        // Severity badge
+        var sevTd = document.createElement('td');
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = (f.severity || '').toUpperCase();
+        badge.style.color = SEV_COLOR[f.severity] || 'inherit';
+        badge.style.fontWeight = '600';
+        sevTd.appendChild(badge);
+        tr.appendChild(sevTd);
+
+        // Category
+        tr.appendChild(td(CAT_LABEL[f.category] || f.category || '—'));
+
+        // Summary
+        tr.appendChild(td(f.summary || ''));
+
+        // Detail — collapsible via <details>
+        var detailTd = document.createElement('td');
+        var details  = document.createElement('details');
+        var summary  = document.createElement('summary');
+        summary.textContent = 'Show detail';
+        var para = document.createElement('p');
+        para.style.marginTop = '0.4rem';
+        para.style.color     = 'var(--text-secondary)';
+        para.textContent     = f.detail || '';
+        details.appendChild(summary);
+        details.appendChild(para);
+        detailTd.appendChild(details);
+        tr.appendChild(detailTd);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applyFilters() {
+      var sev = sevSel.value;
+      var cat = catSel.value;
+      var filtered = semanticFindings.filter(function (f) {
+        return (!sev || f.severity === sev) && (!cat || f.category === cat);
+      });
+      renderFindings(filtered);
+    }
+
+    if (!semanticFindings || semanticFindings.length === 0) {
+      emptyEl.style.display  = '';
+      tableEl.style.display  = 'none';
+    } else {
+      emptyEl.style.display  = 'none';
+      tableEl.style.display  = '';
+      renderFindings(semanticFindings);
+      sevSel.addEventListener('change', applyFilters);
+      catSel.addEventListener('change', applyFilters);
+    }
+  }
+
+  // ── 11. Kick off default tab ──────────────────────────────────
   showTab('overview');
 
 }());
