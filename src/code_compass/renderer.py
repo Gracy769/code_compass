@@ -82,6 +82,7 @@ def render(
     *,
     repo_name: str = "",
     github_slug: str = "",
+    github_ref: str = "",
 ) -> Path:
     """Serialize *result* (an :class:`~code_compass.analysis.models.AnalysisResult`)
     to JSON, render the Jinja2 dashboard and summary templates, and write both
@@ -128,6 +129,7 @@ def render(
         data_json=data_json,
         repo_name=repo_name,
         github_slug=github_slug,
+        github_ref=github_ref,
         summary_url=summary_url,
         dashboard_url=dashboard_url,
     )
