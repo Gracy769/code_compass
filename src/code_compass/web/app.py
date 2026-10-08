@@ -7,6 +7,7 @@ auto-analyzes repositories with the core engine, and serves interactive dashboar
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import secrets
@@ -24,6 +25,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from code_compass.analysis import analyze as run_analysis
+from code_compass.cache_manager import _dict_to_analysis_result, compute_hash, load_cache, save_cache
 from code_compass.discovery import discover
 from code_compass.renderer import render
 from code_compass.web.security import (
@@ -1382,6 +1384,34 @@ async def list_repos(request: Request) -> dict:
 
 
 
+def _github_repo_visibility(repo_url: str, token: str) -> str | None:
+    """Return visibility only when GitHub confirms this caller's access."""
+    import urllib.request
+
+    slug = urlsplit(repo_url).path.strip("/").removesuffix(".git")
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Code-Compass"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{slug}", headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as response:
+            repo = json.loads(response.read())
+        if not isinstance(repo, dict):
+            return None
+        if repo.get("private") is False:
+            return "public"
+        if repo.get("private") is True and token:
+            # Repository metadata alone does not prove code-read permission.
+            contents = urllib.request.Request(
+                f"https://api.github.com/repos/{slug}/contents", headers=headers)
+            with urllib.request.urlopen(contents, timeout=8):
+                pass
+            return "private"
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
 @app.post("/api/analyze-git")
 async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str, str]:
     """Clone a public/private Git repository and run Code Compass analysis."""
@@ -1394,10 +1424,30 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    run_id, work_dir = _new_run(request)
-
     # Step 2: Extract token from Authorization header instead of request body.
     _token = (request.headers.get("authorization") or "").replace("Bearer ", "").strip()
+    visibility = _github_repo_visibility(repo_url, _token)
+    # Cache keys separate public and private states. Private hits are served only
+    # after GitHub confirms this caller can still access the repository.
+    cache_key = compute_hash(f"web:v2:{visibility}:{repo_url}") if visibility else ""
+    slug = urlsplit(repo_url).path.strip("/").removesuffix(".git")
+    if cache_key:
+        cached = load_cache(cache_key, ttl_days=7)
+        cached_ref = str(cached.repo_stats.get("github_ref", "")) if cached is not None else ""
+        if cached is not None and re.fullmatch(r"[0-9a-fA-F]{40}", cached_ref):
+            run_id, work_dir = _new_run(request)
+            try:
+                render(cached, work_dir / "dashboard.html", repo_name=slug.split("/")[-1],
+                       github_slug=slug, github_ref=cached_ref)
+                return {
+                    "success": "true", "analysis_id": run_id,
+                    "dashboard_url": f"/dashboard/{run_id}",
+                    "summary_url": f"/summary/{run_id}",
+                }
+            except Exception:
+                shutil.rmtree(work_dir, ignore_errors=True)
+
+    run_id, work_dir = _new_run(request)
 
     try:
         await _bounded_worker("git", repo_url, work_dir, strict=req.strict, semantic=req.semantic, token=_token)
@@ -1406,6 +1456,14 @@ async def analyze_git_repo(req: GitAnalyzeRequest, request: Request) -> dict[str
         if isinstance(exc, HTTPException):
             raise
         raise HTTPException(status_code=500, detail="Repository analysis failed or timed out.") from exc
+
+    if cache_key:
+        try:
+            data = json.loads((work_dir / "analysis.json").read_text(encoding="utf-8"))
+            save_cache(cache_key, _dict_to_analysis_result(data), ttl_days=7,
+                       repo_name=slug.split("/")[-1], github_slug=slug)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
 
     return {
         "success": "true",

@@ -156,7 +156,7 @@ Core local analysis needs no API key or database. These settings are optional fo
 
 | Setting | Purpose |
 | --- | --- |
-| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Enable CLI analysis caching using the `analysis_cache` table in [`src/code_compass/schema.sql`](src/code_compass/schema.sql). Browser GitHub analyses do not use shared caching, because they can contain private code. |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Enable seven-day analysis caching using the `analysis_cache` table in [`src/code_compass/schema.sql`](src/code_compass/schema.sql). Set `SUPABASE_SERVICE_KEY` to a server-only Supabase secret key (or legacy service-role key). Run the schema SQL once in Supabase SQL Editor; the file is not applied automatically. Browser GitHub cache hits check the requester's GitHub access before serving private analyses. |
 | `SUPABASE_ANON_KEY` | Enables browser-side Supabase GitHub sign-in when paired with `SUPABASE_URL` and a configured GitHub OAuth provider. Add `https://YOUR_HOST/auth/callback` to Supabase's allowed redirect URLs. |
 | `HOST` + `PORT` | Bind address and port for [`server.py`](server.py), including the supplied Docker/Railway launcher. The `code-compass serve` command uses its `--host` and `--port` flags instead. |
 

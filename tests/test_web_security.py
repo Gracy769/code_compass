@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import io
+import dataclasses
+import json
+import urllib.error
 import zipfile
 
 import pytest
@@ -10,6 +13,7 @@ from fastapi.testclient import TestClient
 
 import code_compass.web.app as web_module
 import code_compass.web.security as security
+from code_compass.analysis.models import AnalysisResult
 from code_compass.web.security import canonical_github_url, extract_zip_safely
 
 
@@ -42,8 +46,10 @@ def test_landing_allows_configured_supabase_auth_origin(monkeypatch):
     assert "https://example.supabase.co" in response.headers["content-security-policy"]
 
 
-def test_private_github_analysis_uses_provider_token_without_shared_cache(tmp_path, monkeypatch):
+def test_private_github_analysis_uses_provider_token_on_cache_miss(tmp_path, monkeypatch):
     monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
+    monkeypatch.setattr(web_module, "_github_repo_visibility", lambda *_args: "private")
+    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: None)
     calls = []
 
     async def worker_stub(kind, source, work_dir, **kwargs):
@@ -57,6 +63,97 @@ def test_private_github_analysis_uses_provider_token_without_shared_cache(tmp_pa
                                         "Authorization": "Bearer github-provider-token"})
     assert response.status_code == 200
     assert calls == [("git", "https://github.com/o/r.git", "github-provider-token")]
+
+
+def test_private_cache_hit_requires_current_github_access(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
+    cached = AnalysisResult(repo_stats={"github_ref": "a" * 40})
+    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: cached)
+    renders = []
+
+    def render_stub(_result, path, **kwargs):
+        renders.append(kwargs)
+        path.write_text("dashboard", encoding="utf-8")
+
+    async def worker_stub(*_args, **_kwargs):
+        raise AssertionError("cache hit must skip analysis")
+
+    monkeypatch.setattr(web_module, "render", render_stub)
+    monkeypatch.setattr(web_module, "_bounded_worker", worker_stub)
+    monkeypatch.setattr(web_module, "_github_repo_visibility", lambda *_args: "private")
+    with TestClient(web_module.app, base_url="https://testserver") as client:
+        client.get("/")
+        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
+                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", ""),
+                                        "Authorization": "Bearer authorized-token"})
+    assert response.status_code == 200
+    assert any(r.get("github_ref") == "a" * 40 for r in renders)
+
+
+def test_unverified_repo_never_reads_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
+    monkeypatch.setattr(web_module, "_github_repo_visibility", lambda *_args: None)
+    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("cache read")))
+
+    async def worker_stub(*_args, **_kwargs):
+        pass
+
+    monkeypatch.setattr(web_module, "_bounded_worker", worker_stub)
+    with TestClient(web_module.app, base_url="https://testserver") as client:
+        client.get("/")
+        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
+                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", "")})
+    assert response.status_code == 200
+
+
+def test_private_cache_access_requires_contents_permission(monkeypatch):
+    class FakeResponse:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return self.body
+
+    def metadata_only(request, timeout):
+        if request.full_url.endswith("/contents"):
+            raise urllib.error.HTTPError(request.full_url, 403, "Contents denied", {}, None)
+        return FakeResponse(b'{"private":true}')
+
+    monkeypatch.setattr("urllib.request.urlopen", metadata_only)
+    assert web_module._github_repo_visibility("https://github.com/o/r.git", "metadata-token") is None
+
+    def contents_allowed(request, timeout):
+        return FakeResponse(b'{"private":true}')
+
+    monkeypatch.setattr("urllib.request.urlopen", contents_allowed)
+    assert web_module._github_repo_visibility("https://github.com/o/r.git", "code-token") == "private"
+
+
+def test_public_analysis_is_saved_for_later_visitors(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_module, "STORAGE_DIR", tmp_path)
+    monkeypatch.setattr(web_module, "_github_repo_visibility", lambda *_args: "public")
+    monkeypatch.setattr(web_module, "load_cache", lambda *_args, **_kwargs: None)
+    saved = []
+    monkeypatch.setattr(web_module, "save_cache", lambda *args, **kwargs: saved.append((args, kwargs)))
+
+    async def worker_stub(_kind, _source, work_dir, **_kwargs):
+        result = AnalysisResult(repo_stats={"github_ref": "b" * 40})
+        (work_dir / "analysis.json").write_text(json.dumps(dataclasses.asdict(result)), encoding="utf-8")
+
+    monkeypatch.setattr(web_module, "_bounded_worker", worker_stub)
+    with TestClient(web_module.app, base_url="https://testserver") as client:
+        client.get("/")
+        response = client.post("/api/analyze-git", json={"url": "https://github.com/o/r"},
+                               headers={"X-CSRF-Token": client.cookies.get("csrf_token", "")})
+    assert response.status_code == 200
+    assert len(saved) == 1
+    assert saved[0][1]["github_slug"] == "o/r"
 
 
 def test_oauth_callback_renders_page_for_browser_fragment():
