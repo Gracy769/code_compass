@@ -131,7 +131,8 @@
 
     /* ── Section Cards ──────────────────────────────────────────── */
     .section-card {
-      background: rgba(255, 255, 255, 0.03);
+      background: radial-gradient(circle at 100% 0%, rgba(56,189,248,0.055), transparent 42%),
+        linear-gradient(155deg, rgba(20,34,52,0.90), rgba(8,15,27,0.92));
       border: 1px solid var(--glass-border);
       border-radius: var(--radius-card);
       padding: 1.5rem; margin-bottom: 1.5rem;
@@ -148,11 +149,20 @@
     .explorer-heading p { color:var(--text-secondary); font-size:0.78rem; }
     .starter-grid, .layer-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:0.7rem; }
     .starter-card, .layer-card { font:inherit; text-align:left; color:var(--text-primary); border:1px solid rgba(148,163,184,0.17); border-radius:11px; background:rgba(15,23,42,0.72); padding:0.85rem 0.95rem; min-width:0; }
-    .starter-card { cursor:pointer; }
+    .starter-card { cursor:pointer; min-height:168px; position:relative; overflow:hidden; background:
+      radial-gradient(circle at 95% 0%, rgba(56,189,248,0.16), transparent 52%),
+      repeating-linear-gradient(90deg, transparent 0 23px, rgba(148,163,184,0.024) 24px),
+      rgba(11,23,39,0.92); transition:transform .18s ease,border-color .18s ease; }
+    .starter-card::before { content:''; position:absolute; inset:0 auto 0 0; width:3px; background:#38bdf8; }
+    .starter-card:focus-visible, .layer-card:focus-visible { outline:2px solid #67e8f9; outline-offset:2px; }
+    .starter-card:hover { transform:translateY(-2px); }
     .starter-card:hover, .layer-card:hover { border-color:rgba(56,189,248,0.55); background:rgba(15,36,61,0.8); }
     .starter-card strong, .layer-card strong { display:block; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .starter-card small, .layer-card small { display:block; color:var(--text-secondary); margin-top:0.3rem; }
     .starter-card .starter-path { color:#93c5fd; font-size:0.76rem; overflow-wrap:anywhere; margin-top:0.2rem; }
+    .starter-card .starter-eyebrow { display:block; color:#67e8f9; font-size:0.67rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-bottom:.5rem; }
+    .starter-card .starter-purpose { display:block; color:#e2e8f0; font-size:.79rem; line-height:1.45; margin-top:.65rem; }
+    .starter-card .starter-evidence { display:block; color:#94a3b8; font-size:.7rem; margin-top:.45rem; }
     .layer-card { cursor:pointer; border-left:3px solid #38bdf8; }
     .layer-card.active { border-color:#38bdf8; background:rgba(14,116,144,0.18); }
     .layer-card .layer-count { float:right; color:#67e8f9; font-weight:700; }
@@ -508,6 +518,23 @@ function directoryOf(path) {
   return index < 0 ? 'Repository root' : normal.slice(0, index);
 }
 function isSourceFile(file) { return ['python','javascript','typescript'].includes(file.language); }
+function filePurpose(file) {
+  const name = String(file.path || '').replace(/\\/g, '/').split('/').pop().toLowerCase();
+  if (/^(models?|schemas?|types?)\./.test(name)) return 'Likely role: Data models and shared types.';
+  if (/^(security|auth|authentication)\./.test(name)) return 'Likely role: Authentication and security checks.';
+  if (/^(orchestrator|coordinator)\./.test(name)) return 'Likely role: Coordinates the analysis workflow.';
+  if (/^(worker|jobs?|tasks?)\./.test(name)) return 'Likely role: Runs background or scheduled work.';
+  if (/^(renderer|rendering)\./.test(name)) return 'Likely role: Builds the generated output.';
+  if (/^(discovery|scanner)\./.test(name)) return 'Likely role: Finds and indexes repository files.';
+  const roles = {
+    core:'Core module; inspect its symbols for details', api:'API routes or request handling',
+    data_model:'Data models and shared types', service:'Application services or jobs',
+    middleware:'Authentication or request middleware', ui:'User interface and presentation',
+    cli:'Command-line entry points', infra:'Infrastructure and configuration',
+    util:'Reusable helpers', test:'Tests and fixtures'
+  };
+  return 'Likely role: ' + (roles[file.layer] || 'Repository source file') + '.';
+}
 
 function renderExplorerOverview() {
   const allFiles = DATA.files || [];
@@ -519,14 +546,27 @@ function renderExplorerOverview() {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'starter-card';
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'starter-eyebrow';
+    eyebrow.textContent = index === 0 ? 'Suggested first stop' : 'Explore next · ' + (index + 1);
     const title = document.createElement('strong');
     title.textContent = `${index + 1}. ${String(file.path).split(/[\\/]/).pop()}`;
     const path = document.createElement('div');
     path.className = 'starter-path';
     path.textContent = file.path;
     const hint = document.createElement('small');
-    hint.textContent = `${LAYER_LABELS[file.layer] || file.layer || 'Unclassified'} · ${file.symbols_count || 0} symbols`;
-    card.append(title, path, hint);
+    hint.textContent = `${LAYER_LABELS[file.layer] || file.layer || 'Unclassified'} · ${file.symbols_count || 0} ${file.symbols_count === 1 ? 'symbol' : 'symbols'}`;
+    const purpose = document.createElement('span');
+    purpose.className = 'starter-purpose';
+    purpose.textContent = filePurpose(file);
+    const evidence = document.createElement('span');
+    evidence.className = 'starter-evidence';
+    const namedSymbols = (DATA.symbols || []).filter(symbol => symbol.file === file.path)
+      .slice(0, 2).map(symbol => symbol.name);
+    evidence.textContent = namedSymbols.length
+      ? `Detected symbols: ${namedSymbols.join(', ')}`
+      : `${file.in_degree || 0} incoming · ${file.out_degree || 0} outgoing detected calls`;
+    card.append(eyebrow, title, path, purpose, hint, evidence);
     card.addEventListener('click', () => {
       document.getElementById('files-search').value = file.path;
       document.getElementById('files-layer-filter').value = '';
@@ -839,7 +879,11 @@ initFiles();
 initSymbols();
 const explorerParams = new URLSearchParams(window.location.search);
 const focusedFile = explorerParams.get('file');
-if (explorerParams.get('tab') === 'symbols') {
+if (explorerParams.get('tab') === 'files' && focusedFile &&
+    (DATA.files || []).some(file => file.path === focusedFile)) {
+  document.getElementById('files-search').value = focusedFile;
+  renderFiles();
+} else if (explorerParams.get('tab') === 'symbols') {
   if (focusedFile && (DATA.files || []).some(file => file.path === focusedFile)) {
     openFileSymbols(focusedFile);
   } else {
