@@ -8,22 +8,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-C96F4D)](pyproject.toml)
 ![Status: Active Hackathon Build](https://img.shields.io/badge/Status-Active%20Hackathon%20Build-D98662)
 
-![A compass rose branching into a map of connected codebase components](docs/code-compass-cover.png)
-
 Code Compass turns an unfamiliar repository into a navigable picture of how it is built. Give it a GitHub URL, a ZIP archive, or a local path through the CLI, and it discovers source files, extracts symbols and static calls, classifies architectural layers, and highlights the files most useful to read first.
 
 The result is a self-contained HTML dashboard and a companion Summary Explorer: an expandable architecture map, caller-to-callee views, contributor history, code health signals, and a repository-specific AI system prompt. An optional provider-backed audit can review selected source excerpts for concrete security and correctness findings. Code Compass is designed to shorten the distance from “I just opened this repo” to “I know where to start.”
-
-<details>
-<summary><strong>See the landing page, dashboard, and Summary Explorer</strong></summary>
-
-![Code Compass editorial landing page](docs/ui-revamp/after-landing.png)
-
-![Code Compass overview dashboard](docs/ui-revamp/after-overview.png)
-
-![Code Compass Summary Explorer](docs/ui-revamp/after-summary.png)
-
-</details>
 
 ## Contents
 
